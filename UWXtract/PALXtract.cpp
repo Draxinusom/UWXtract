@@ -19,7 +19,7 @@ int PALXtract(
 	const std::string OutPath,
 	const bool IsGIMP
 ) {
-	// Reusable variable for setting target file names
+// Reusable variable for setting target file names
 	char TempPath[256];
 
 	CreateFolder(OutPath);
