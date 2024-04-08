@@ -6,8 +6,10 @@
 	Extracts details from game saves
 
 	Todo:
-		Add inventory export
 		Add UW2 saves (currently UW1 only)
+		Might add some sort of item path like:
+			ItemName (<ObjectID>)\ItemName (<ObjectID>)\<Position>
+			Pack (1)\Sack (3)\2
 *************/
 #include "UWXtract.h"
 
@@ -22,10 +24,31 @@ int ProcessUW1SAV(
 // Reusable variable for setting target file names
 	char TempPath[256];
 
+// Get item properties (QualityType/CanBeOwned) - needed for some item related things
+	sprintf(TempPath, "%s\\DATA\\COMOBJ.DAT", UWPath.c_str());
+	FILE* COMOBJ = fopen(TempPath, "rb");
+	fseek(COMOBJ, 0, SEEK_END);
+	int RecordCount = (ftell(COMOBJ) - 2) / 11;
+	fseek(COMOBJ, 2, SEEK_SET);
+
+	std::vector<unsigned char> ItemProperty;
+
+	for (int i = 0; i < RecordCount; i++) {
+		unsigned char ItemBuffer[11];  // Easier to just read the full item in and pick out targets
+		fread(ItemBuffer, 1, 11, COMOBJ);
+
+		ItemProperty.push_back((ItemBuffer[10] & 0x0F) | (ItemBuffer[7] & 0x80));
+	}
+	fclose(COMOBJ);
+
 // Create export files and set headers
-	sprintf(TempPath, "%s\\%s.csv", OutPath.c_str(), SourcePath);
+	sprintf(TempPath, "%s\\%s_Data.csv", OutPath.c_str(), SourcePath);
 	FILE* SaveOut = fopen(TempPath, "w");
 	fprintf(SaveOut, "Offset,Size,Property,Value\n");
+
+	sprintf(TempPath, "%s\\%s_Inventory.csv", OutPath.c_str(), SourcePath);
+	FILE* InvOut = fopen(TempPath, "w");
+	fprintf(InvOut, "ObjectID,ItemID,ItemName,Condition,Enchantment,Identified,OwnedBy,NextObjectID,LinkID,Flags,IsEnchanted,IsDirection,IsInvisible,IsQuantity,Heading,PosX,PosY,PosZ,Quality,Owner,Quantity,Property\n");
 
 	sprintf(TempPath, "%s\\%s\\PLAYER.DAT", UWPath.c_str(), SourcePath);
 	FILE* SAVFile = fopen(TempPath, "rb");
@@ -977,8 +1000,211 @@ int ProcessUW1SAV(
 			SAVData[b]			// Value
 		);
 	}
-	fclose(SAVFile);
 	fclose(SaveOut);
+
+// Get number of items
+	fseek(SAVFile, 0, SEEK_END);
+	int ItemCount = (ftell(SAVFile) - (311 + FileByteOffset)) / 8;
+	fseek(SAVFile, 311 + FileByteOffset, SEEK_SET);
+
+// Read in all inventory items
+	std::vector<std::vector<unsigned short int>> ItemData(ItemCount, std::vector<unsigned short int>(4));
+	for (int i = 0; i < ItemCount; i++) {
+		unsigned short int ItemByte[4];
+		fread(ItemByte, sizeof(short int), 4, SAVFile);
+		for (int b = 0; b < 4; b++) {
+			ItemData[i][b] = ItemByte[b];
+		}
+	}
+
+// Process list
+	for (int i = 0; i < ItemCount; i++) {
+	// Get ItemID
+		int ItemID = ItemData[i][0] & 0x01FF;
+
+	// Flag used for multiple things so go ahead and grab now
+		int IsQuantity = ItemData[i][0] >> 15;
+
+	// Want these to show blank based on values so define here (probably a better way to do this but ehh)
+		char NextObjectID[10] = "";
+		if (ItemData[i][2] >> 6 > 0) {
+			sprintf(NextObjectID, "%u", ItemData[i][2] >> 6);
+		}
+
+		char LinkID[10] = "";
+		if (IsQuantity == 0 && ItemData[i][3] >> 6 > 0) {
+			sprintf(LinkID, "%u", ItemData[i][3] >> 6);
+		}
+
+		char Quantity[10] = "";
+		if (IsQuantity == 1 && ItemData[i][3] >> 6 < 512) {
+			sprintf(Quantity, "%u", ItemData[i][3] >> 6);
+		}
+
+		char Property[10] = "";
+		short int PropertyID = 512;	// Used for enchantment lookup
+		if (IsQuantity == 1 && (ItemData[i][3] >> 6) >= 512) {
+			PropertyID = (ItemData[i][3] >> 6) - 512;
+			sprintf(Property, "%u", PropertyID);
+		}
+
+	// Get item condition (where applicable)
+		char Condition[16] = "";
+		// First get the string block for the item type
+		unsigned char QualityTypeID = (ItemProperty[ItemID] & 0x0F);
+
+		if (QualityTypeID < 15) {	// Exclude out of range objects
+			unsigned char QualityStringID = ItemData[i][2] & 0x003F;	// Get the item's quality
+			/***
+				Condition is broken up into 6 condition ranges based on the item's quality:
+					0:		Broken
+					1-16:	Heavily Damaged
+					17-32:	Damaged
+					33-45:	Lightly Damaged
+					46-62:	Good	(Note: This _usually_ is the same value as perfect)
+					63:		Perfect
+
+				Note: Verbiage above is general description of the range, not the condition string
+			***/
+			if (QualityStringID == 0) {
+				QualityStringID = 0;
+			}
+			else if (QualityStringID <= 16) {
+				QualityStringID = 1;
+			}
+			else if (QualityStringID <= 32) {
+				QualityStringID = 2;
+			}
+			else if (QualityStringID <= 45) {
+				QualityStringID = 3;
+			}
+			else if (QualityStringID < 63) {
+				QualityStringID = 4;
+			}
+			else {
+				QualityStringID = 5;
+			}
+
+			sprintf(Condition, "%s", gs.get_string(5, (QualityTypeID * 6) + QualityStringID).c_str());
+		}
+
+	// Get enchantment (where applicable)
+		char IsEnchanted = (ItemData[i][0] >> 12) & 0x01;
+		char Enchantment[32] = "";
+		std::string IDed = "";
+
+	// Check if enchanted flag set and valid item type/property or if wand/sceptre item type with a link
+		if ((IsEnchanted == 1 && ItemID < 320 && PropertyID < 512) || (ItemID >= 144 && ItemID <= 175 && IsEnchanted == 0 && LinkID != "")) {
+			short int EnchantedItemID = ItemID;
+			short int EnchantedPropertyID = PropertyID;
+
+			if (IsEnchanted == 0) {
+				short int EnchantedObjectID = ItemData[i][3] >> 6;
+				EnchantedItemID = ItemData[EnchantedObjectID][0] & 0x01FF;
+
+			// Spell
+				if (EnchantedItemID == 288) {
+					EnchantedPropertyID = (ItemData[EnchantedObjectID][3] >> 6) - 512;
+				}
+			// Push out of range if not spell
+				else {
+					EnchantedPropertyID = 367;
+				}
+			}
+
+		// Weapon - Standard
+			if (EnchantedItemID < 32 && EnchantedPropertyID >= 192 && EnchantedPropertyID <= 207) {
+				sprintf(Enchantment, "%s", gs.get_string(6, EnchantedPropertyID + 256).c_str());
+			}
+		// Armor - Standard
+			else if (EnchantedItemID >= 32 && EnchantedItemID < 64 && EnchantedPropertyID >= 192 && EnchantedPropertyID <= 207) {
+				sprintf(Enchantment, "%s", gs.get_string(6, EnchantedPropertyID + 272).c_str());
+			}
+		// Weapon/Armor & Fountain - Other types
+			else if (EnchantedItemID < 64 || EnchantedItemID == 302) {
+				sprintf(Enchantment, "%s", gs.get_string(6, EnchantedPropertyID).c_str());
+			}
+		// Other types
+			else if (EnchantedPropertyID < 64) {
+				sprintf(Enchantment, "%s", gs.get_string(6, EnchantedPropertyID + 256).c_str());
+			}
+		// Other types
+			else {
+				sprintf(Enchantment, "%s", gs.get_string(6, EnchantedPropertyID + 144).c_str());
+			}
+
+		// Get identification state
+			if ((ItemData[i][0] & 0x1000) == 0x1000) {
+				switch ((ItemData[i][1] >> 7) & 0x03) {
+					case 0:	IDed = "No"; break;
+					case 1: IDed = "No"; break;			// Don't think it should get to this state, I had to manually mess with it to set it and it treats as unidentified
+					case 2: IDed = "Partial"; break;	// Indicates you know the item is "magical"
+					case 3: IDed = "Yes"; break;
+				}
+
+			// Append an * to indicate if ID has been attempted -- Probably need to have _some_ actual documentation as no one will know what that means without looking at the code, which they should, it's pretty great
+				if ((ItemData[i][1] & 0x0200) == 0x0200 && IDed != "Yes") {	// Don't bother flagging if already IDed
+					IDed += "*";
+				}
+			}
+		}
+
+	// Get owner (where applicable) -- Have no idea if this value is kept once it hits your inventory - Need to steal some crap and check and will remove if cleared
+		char OwnedBy[24] = "";
+		if ((ItemProperty[ItemID] & 0x80) == 0x80 && (ItemData[i][3] & 0x003F) > 0) {
+			sprintf(OwnedBy, "%s", CleanDisplayName(gs.get_string(1, (ItemData[i][3] & 0x003F) + 370), true, false).c_str());
+		}
+
+	// Extract to CSV
+		fprintf(InvOut,
+			"%u,"	// ObjectID
+			"%u,"	// ItemID
+			"%s,"	// ItemName
+			"%s,"	// Condition
+			"%s,"	// Enchantment
+			"%s,"	// Identified
+			"%s,"	// OwnedBy
+			"%s,"	// NextObjectID
+			"%s,"	// LinkID
+			"%u,"	// Flags
+			"%u,"	// IsEnchanted
+			"%u,"	// IsDirection
+			"%u,"	// IsInvisible
+			"%u,"	// IsQuantity
+			"%u,"	// Heading
+			"%u,"	// PosX	-- Not entirely sure what these 3 mean for items in inventory, if anything, may just carry over what it originally had and doesn't bother adjusting until you drop it
+			"%u,"	// PosY
+			"%u,"	// PosZ
+			"%u,"	// Quality
+			"%u,"	// Owner
+			"%s,"	// Quantity
+			"%s\n",	// Property
+			i + 1,							// ObjectID -- Inventory items start at 1
+			ItemID,							// ItemID
+			CleanDisplayName(gs.get_string(4, ItemData[i][0] & 0x01FF).c_str(), true, false).c_str(),	// ItemName
+			Condition,						// Condition
+			Enchantment,					// Enchantment
+			IDed.c_str(),					// Identified
+			OwnedBy,						// OwnedBy
+			NextObjectID,					// NextObjectID
+			LinkID,							// LinkID
+			(ItemData[i][0] >> 9) & 0x07,   // Flags
+			IsEnchanted,					// IsEnchanted
+			(ItemData[i][0] >> 13) & 0x01,  // IsDirection
+			(ItemData[i][0] >> 14) & 0x01,  // IsInvisible
+			IsQuantity,						// IsQuantity
+			(ItemData[i][1] >> 7) & 0x07,   // Heading
+			ItemData[i][1] >> 13,           // PosX
+			(ItemData[i][1] >> 10) & 0x07,  // PosY
+			ItemData[i][1] & 0x007F,        // PosZ
+			ItemData[i][2] & 0x003F,        // Quality
+			ItemData[i][3] & 0x003F,        // Owner
+			Quantity,						// Quantity
+			Property						// Property
+		);
+	}
+	fclose(InvOut);
+	fclose(SAVFile);
 
 	return 0;
 }
