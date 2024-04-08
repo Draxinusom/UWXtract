@@ -62,6 +62,7 @@ Do **_not_** use ImageMagick if you want to keep the converted files as indexed.
 |------|-------------|-----------|-----------|
 |DAT|Various data/object type details|Described below|Described below|
 |LEV|Level archive|DATA\\LEV.ARK / SAVE#\\LEV.ARK|DATA\\LEV.ARK / SAVE#\\LEV.ARK|
+|MAG|Magic spell details|UW.EXE|UW2.EXE|
 |MDL|3D model details|UW.EXE|UW2.EXE|
 |PAK|Game strings|DATA\\STRINGS.PAK|DATA\\STRINGS.PAK|
 |PAL|Image color palettes|Described below|Described below|
@@ -99,6 +100,11 @@ While a few data extracts are complete, most contain (at least some) data whose 
 For these data types, you can specify the specific save to extract or the original data version by adding the save number or "d" to the type parameter (i.e. SAV2).  Additionally, you can specify all with * (SCD*).
 
 If none is specified, LEV & SCD will behave as if you specified the data version (i.e. LEVD) and SAV will extract SAVE1 (i.e. SAV1).
+
+### MAG
+This data type is extracting data from a hardcoded table in the UW/UW2 executable.  The MDL extract which is also pulling data from those has a list of different offsets (position where the data exists in the file) to try as its position in the executable can change based on the file version.  I suspect, but don't know for certain, that will be the case for the magic data as well.
+
+Like everything else, this was written using the GOG versions of UW1/UW2 so only the offset for that version is known/used.  I don't believe it should fail (though it might) if it is in a different place on the version you run it on, the data should just be obviously wrong (i.e. no or incorrect mantras).  If that happens, create an issue and we'll work out a way to send me the executable (not sure we can or it'd be a good idea to attach it since the game is still being sold) so I can investigate and get its offset added.
 
 ## Build
 This project was originally created as a modified version of the "hacking" tools included in [UnderworldAdventures](https://github.com/vividos/UnderworldAdventures) (UA) and still relies on code from that project.  While I intend to work through and extract out just the components this project requires to make it standalone, as of now, you will also need the source for that.
