@@ -25,6 +25,7 @@ extern int CRITXtract(bool IsUW2, const std::string UWPath, const std::string Ou
 extern int DATXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int GRXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int LEVXtract(bool IsUW2, std::string ExportTarget, const std::string UWPath, const std::string OutPath);
+extern int MAGXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int MDLXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int PAKXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int PALXtract(bool IsUW2, const std::string UWPath, const std::string OutPath, bool IsGIMP);
@@ -53,6 +54,7 @@ int main(
 			"  FONT     Font files (*.SYS)\n"
 			"  GR       GR bitmap images (Objects/UI Elements/Etc)\n"
 			"  LEV      Level archive\n"
+			"  MAG      Magic spell data\n"
 			"  MDL      3D model details\n"
 			"  PAK      Game strings (text)\n"
 			"  PAL      Bitmap color palettes\n"
@@ -106,6 +108,7 @@ int main(
 		SYSXtract(IsUW2, UWPath, OutPath + "\\FONT");
 		GRXtract(IsUW2, UWPath, OutPath + "\\GR");
 		LEVXtract(IsUW2, "*", UWPath, OutPath + "\\LEV");
+		MAGXtract(IsUW2, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
 		MDLXtract(IsUW2, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
 		PAKXtract(IsUW2, UWPath, OutPath + "\\PAK");
 		PALXtract(IsUW2, UWPath, OutPath + "\\PAL", false);
@@ -156,6 +159,26 @@ int main(
 	else if (ExportType.substr(0, 3) == "lev" && ExportType.length() == 4) {
 		return LEVXtract(IsUW2, ExportType.substr(3, 1), UWPath, OutPath);
 	}
+// MAG
+	else if (_stricmp("mag", argv[1]) == 0) {
+		return MAGXtract(IsUW2, UWPath, OutPath);
+	}
+
+// MDL
+	else if (_stricmp("mdl", argv[1]) == 0 || _stricmp("model", argv[1]) == 0) {
+		return MDLXtract(IsUW2, UWPath, OutPath);
+	}
+// PAK
+	else if (_stricmp("pak", argv[1]) == 0) {
+		return PAKXtract(IsUW2, UWPath, OutPath);
+	}
+// PAL
+	else if (_stricmp("gimp", argv[1]) == 0) {   // Not sure if this would be more confusing if included, may just be useful for me, so hidden option
+		return PALXtract(IsUW2, UWPath, OutPath, true);
+	}
+	else if (_stricmp("pal", argv[1]) == 0) {
+		return PALXtract(IsUW2, UWPath, OutPath, false);
+	}
 // SAV
   // Break if UW2 (ideally will be removed)
 	else if (IsUW2 && (_stricmp("save", argv[1]) == 0 || _stricmp("sav", argv[1]) == 0 || _stricmp("savd", argv[1]) == 0 || _stricmp("sav*", argv[1]) == 0 || (ExportType.substr(0, 3) == "sav" && ExportType.length() == 4))) {
@@ -177,21 +200,6 @@ int main(
   // SAVE#
 	else if (ExportType.substr(0, 3) == "sav" && ExportType.length() == 4) {
 		return SAVXtract(ExportType.substr(3, 1), UWPath, OutPath);
-	}
-// MDL
-	else if (_stricmp("mdl", argv[1]) == 0 || _stricmp("model", argv[1]) == 0) {
-		return MDLXtract(IsUW2, UWPath, OutPath);
-	}
-// PAK
-	else if (_stricmp("pak", argv[1]) == 0) {
-		return PAKXtract(IsUW2, UWPath, OutPath);
-	}
-// PAL
-	else if (_stricmp("gimp", argv[1]) == 0) {   // Not sure if this would be more confusing if included, may just be useful for me, so hidden option
-		return PALXtract(IsUW2, UWPath, OutPath, true);
-	}
-	else if (_stricmp("pal", argv[1]) == 0) {
-		return PALXtract(IsUW2, UWPath, OutPath, false);
 	}
 // SCD
   // Break if UW1
