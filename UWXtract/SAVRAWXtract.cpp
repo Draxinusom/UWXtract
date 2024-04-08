@@ -8,6 +8,7 @@
 	Note:  Hardcoded to SAVE1
 *************/
 #include "UWXtract.h"
+#include <vector>
 
 extern std::string ByteToBitArray(const unsigned char ByteIn);	// Util.cpp
 
@@ -21,9 +22,13 @@ int SAVRAWXtract(
 // Create export files and set headers
 	CreateFolder(OutPath);
 
-	sprintf(TempPath, "%s\\SAVERAW%u.csv", OutPath.c_str(), 1);
+	sprintf(TempPath, "%s\\SAVERAW%u_Data.csv", OutPath.c_str(), 1);
 	FILE* SaveOut = fopen(TempPath, "w");
 	fprintf(SaveOut, "Offset,HexVal,BinVal,DecVal\n");
+
+	sprintf(TempPath, "%s\\SAVERAW%u_Inventory.csv", OutPath.c_str(), 1);
+	FILE* InvOut = fopen(TempPath, "w");
+	fprintf(InvOut, "ObjectID,x00,x02,x04,x06\n");
 
 	sprintf(TempPath, "%s\\SAVE%u\\PLAYER.DAT", UWPath.c_str(), 1);
 	FILE* SAVFile = fopen(TempPath, "rb");
@@ -68,6 +73,41 @@ int SAVRAWXtract(
 		);
 	}
 	fclose(SaveOut);
+
+
+// Get number of items
+	fseek(SAVFile, 0, SEEK_END);
+	int ItemCount = (ftell(SAVFile) - (311 + FileByteOffset)) / 8;
+	fseek(SAVFile, 311 + FileByteOffset, SEEK_SET);
+
+	std::vector< std::vector<unsigned short int>> ItemData (ItemCount, std::vector<unsigned short int>(4));
+
+	for (int i = 0; i < ItemCount; i++) {
+		unsigned short int ItemByte[4];
+		fread(ItemByte, sizeof(short int), 4, SAVFile);
+		for (int b = 0; b < 4; b++) {
+			ItemData[i][b] = ItemByte[b];
+		}
+	}
+
+// Dump
+	for (int i = 0; i < ItemCount; i++) {
+			fprintf(
+				InvOut,
+				"%u,"		// ObjectID
+				"%04x,"		// x00
+				"%04x,"		// x02
+				"%04x,"		// x04
+				"%04x\n",	// x06
+				i + 1,			// ObjectID
+				ItemData[i][0],	// x00
+				ItemData[i][1],	// x02
+				ItemData[i][2],	// x04
+				ItemData[i][3]	// x06
+			);
+	}
+
+	fclose(InvOut);
 	fclose(SAVFile);
 
 	printf("PLAYER.DAT (raw) extracted to %s\n", OutPath.c_str());
