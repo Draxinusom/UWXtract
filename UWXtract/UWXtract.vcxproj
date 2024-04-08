@@ -68,6 +68,7 @@
     <ClCompile Include="BYTXtract.cpp" />
     <ClCompile Include="CRITXtract.cpp" />
     <ClCompile Include="GameString.cpp" />
+    <ClCompile Include="MAGXtract.cpp" />
     <ClCompile Include="SAVRAWXtract.cpp" />
     <ClCompile Include="SYSXtract.cpp" />
     <ClCompile Include="GRXtract.cpp" />
