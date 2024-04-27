@@ -29,12 +29,14 @@ extern int MAGXtract(bool IsUW2, const std::string UWPath, const std::string Out
 extern int MDLXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int PAKXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int PALXtract(bool IsUW2, const std::string UWPath, const std::string OutPath, bool IsGIMP);
-extern int SAVXtract(std::string ExportTarget, const std::string UWPath, const std::string OutPath);
+extern int SAVXtract(bool IsUW2, std::string ExportTarget, const std::string UWPath, const std::string OutPath);
 extern int SCDXtract(std::string ExportTarget, const std::string UWPath, const std::string OutPath);
 extern int SYSXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int TRXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 
-extern int SAVRAWXtract(const std::string UWPath, const std::string OutPath);
+// Test functions
+extern int RAWXtractUW1(const std::string UWPath, const std::string OutPath);
+extern int RAWXtractUW2(const std::string UWPath, const std::string OutPath);
 
 int main(
 	int argc,
@@ -71,7 +73,7 @@ int main(
 		);
 		return -1;
 	}
-   
+
 // Set default paths -- ADD SOME LOGIC HERE!!!!!!!!!!!!!!!!!
 	std::string UWPath = ".\\";
 	std::string OutPath = ".\\UWXtract";
@@ -87,8 +89,35 @@ int main(
 
 // Capture incoming parameter as string for LEV/SAV/SCD targeting
 	std::string ExportType = argv[1];
+
 // And convert to lower case
 	std::transform(ExportType.begin(), ExportType.end(), ExportType.begin(), [](unsigned char c) { return std::tolower(c); });
+
+// Get LEV/SAV/SCD target
+	std::string ExportTarget = "";
+	if (ExportType.substr(0, 3) == "lev" || ExportType.substr(0, 3) == "sav"  || ExportType.substr(0, 3) == "scd" ) {
+	// Different default for SAV vs LEV/SCD if target not specified
+		if (ExportType.length() == 3) {
+			if (ExportType == "sav") {
+				ExportTarget = "1";
+			}
+			else {
+				ExportTarget = "D";
+			}
+		}
+	// Break if invalid length passed
+		else if (ExportType.length() > 4) {
+			printf("Invalid extract target: %s\n", ExportType.substr(3, ExportType.length() - 3).c_str());
+			return -1;
+		}
+	// Take 4th character as target, further validation is done in the extract function
+		else {
+			ExportTarget = ExportType.substr(3, 1);
+		}
+
+	// Strip target character from export type
+		ExportType = ExportType.substr(0, 3);
+	}
 
 // Identify game type - assuming UW1 if UW2.exe not found
 	bool IsUW2 = (std::filesystem::exists(UWPath + "\\UW2.exe"));
@@ -112,10 +141,7 @@ int main(
 		MDLXtract(IsUW2, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
 		PAKXtract(IsUW2, UWPath, OutPath + "\\PAK");
 		PALXtract(IsUW2, UWPath, OutPath + "\\PAL", false);
-	// SAV is UW1 for now -- Don't think it's worth noting it's skipped here, only if specifically called
-		if (!IsUW2) {
-			SAVXtract("*", UWPath, OutPath + "\\SAV");
-		}
+		SAVXtract(IsUW2, "*", UWPath, OutPath + "\\SAV");
 	// SCD is UW2 only -- Don't think it's worth noting it's skipped here, only if specifically called
 		if (IsUW2) {
 			SCDXtract("*", UWPath, OutPath + "\\SCD");
@@ -147,17 +173,8 @@ int main(
 		return GRXtract(IsUW2, UWPath, OutPath);
 	}
 // LEV
-  // DATA or unspecified
-	else if (_stricmp("lev", argv[1]) == 0 || _stricmp("levd", argv[1]) == 0) {
-		return LEVXtract(IsUW2, "D", UWPath, OutPath);
-	}
-  // All
-	else if (_stricmp("lev*", argv[1]) == 0) {
-		return LEVXtract(IsUW2, "*", UWPath, OutPath);
-	}
-  // SAVE#
-	else if (ExportType.substr(0, 3) == "lev" && ExportType.length() == 4) {
-		return LEVXtract(IsUW2, ExportType.substr(3, 1), UWPath, OutPath);
+	else if (ExportType == "lev") {
+		return LEVXtract(IsUW2, ExportTarget, UWPath, OutPath);
 	}
 // MAG
 	else if (_stricmp("mag", argv[1]) == 0) {
@@ -180,44 +197,19 @@ int main(
 		return PALXtract(IsUW2, UWPath, OutPath, false);
 	}
 // SAV
-  // Break if UW2 (ideally will be removed)
-	else if (IsUW2 && (_stricmp("save", argv[1]) == 0 || _stricmp("sav", argv[1]) == 0 || _stricmp("savd", argv[1]) == 0 || _stricmp("sav*", argv[1]) == 0 || (ExportType.substr(0, 3) == "sav" && ExportType.length() == 4))) {
-		printf("Game save extract currently only for UW1.\n\nI'll get to it.\n");
-		return -1;
-	}
-  // DATA
-	else if (_stricmp("savd", argv[1]) == 0) {
-		return SAVXtract("D", UWPath, OutPath);
-	}
-  // All
-	else if (_stricmp("sav*", argv[1]) == 0) {
-		return SAVXtract("*", UWPath, OutPath);
-	}
-  // Unspecified (try SAVE1)
-	else if (_stricmp("save", argv[1]) == 0 || _stricmp("sav", argv[1]) == 0) {	// Default to SAVE1 if not specified
-		return SAVXtract("1", UWPath, OutPath);
-	}
-  // SAVE#
-	else if (ExportType.substr(0, 3) == "sav" && ExportType.length() == 4) {
-		return SAVXtract(ExportType.substr(3, 1), UWPath, OutPath);
+	else if (ExportType == "sav") {
+		return SAVXtract(IsUW2, ExportTarget, UWPath, OutPath);
 	}
 // SCD
-  // Break if UW1
-	else if (!IsUW2 && (_stricmp("scd", argv[1]) == 0 || _stricmp("scdd", argv[1]) == 0 || _stricmp("scd*", argv[1]) == 0 || (ExportType.substr(0, 3) == "scd" && ExportType.length() == 4))) {
-		printf("SCD.ARK extract for UW2 only.\n");
-		return -1;
-	}
-  // DATA or unspecified
-	else if (_stricmp("scd", argv[1]) == 0 || _stricmp("scdd", argv[1]) == 0) {
-		return SCDXtract("D", UWPath, OutPath);
-	}
-  // All
-	else if (_stricmp("scd*", argv[1]) == 0) {
-		return SCDXtract("*", UWPath, OutPath);
-	}
-  // SAVE#
-	else if (ExportType.substr(0, 3) == "scd" && ExportType.length() == 4) {
-		return SCDXtract(ExportType.substr(3, 1), UWPath, OutPath);
+	else if (ExportType == "scd") {
+	// Break if UW1
+		if (!IsUW2) {
+			printf("SCD.ARK extract for UW2 only.\n");
+			return -1;
+		}
+		else {
+			return SCDXtract(ExportTarget, UWPath, OutPath);
+		}
 	}
 // TR
 	else if (_stricmp("tr", argv[1]) == 0) {
@@ -225,9 +217,11 @@ int main(
 	}
 // Save test - not listed
 	else if (!IsUW2 && _stricmp("raw", argv[1]) == 0) {
-		return SAVRAWXtract(UWPath, OutPath);
+		return RAWXtractUW1(UWPath, OutPath);
 	}
-
+	else if (IsUW2 && _stricmp("raw", argv[1]) == 0) {
+		return RAWXtractUW2(UWPath, OutPath);
+	}
 	else {
 		printf("Invalid extract type: %s\n", argv[1]);
 		return -1;
