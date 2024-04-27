@@ -69,7 +69,10 @@
     <ClCompile Include="CRITXtract.cpp" />
     <ClCompile Include="GameString.cpp" />
     <ClCompile Include="MAGXtract.cpp" />
-    <ClCompile Include="SAVRAWXtract.cpp" />
+    <ClCompile Include="RAWXtractUW2.cpp" />
+    <ClCompile Include="SAVXtractUW2.cpp" />
+    <ClCompile Include="RAWXtractUW1.cpp" />
+    <ClCompile Include="SAVXtractUW1.cpp" />
     <ClCompile Include="SYSXtract.cpp" />
     <ClCompile Include="GRXtract.cpp" />
     <ClCompile Include="UWXtract.cpp" />
