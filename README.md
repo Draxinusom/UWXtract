@@ -54,8 +54,22 @@ Images are extracted as TGA files.  I've included two batch files (you'll likely
 
 If you don't know the difference or why you would prefer one over the other, use TGAtoRGBPNG.bat.
 
+Both can be run by just dragging and dropping the folder containing the TGA images on it.
+
 Note:  
 Do **_not_** use ImageMagick if you want to keep the converted files as indexed.  ImageMagick **_will_** alter the color map.
+
+Additionally, I've included a PowerShell script that can be used to create an image of a text string using the font character images.  This requires ImageMagick and you may need to alter the path in the script to where it is installed/located on your system.
+
+**Syntax:**
+```shell
+	CreateImageFromCharacters.ps1 [InString] [OutFile] [FontPath] [TargetColor/Optional] [CharacterColor/Optional] [BackgroundColor/Optional] [CharImageType/Optional]
+```
+
+**Example:**
+```shell
+	CreateImageFromCharacters.ps1 "Example string." .\Example.png "C:\Users\Draxinusom\Desktop\UW1Xtract\FONT5X6P"
+```
 
 ### Data
 | Type | Description | UW1 Files | UW2 Files |
@@ -67,7 +81,7 @@ Do **_not_** use ImageMagick if you want to keep the converted files as indexed.
 |PAK|Game strings|DATA\\STRINGS.PAK|DATA\\STRINGS.PAK|
 |PAL|Image color palettes|Described below|Described below|
 |SCD|SCD archive|N/A|DATA\\SCD.ARK / SAVE#\\SCD.ARK|
-|SAV|Game saves|DATA\\PLAYER.DAT / SAVE#\\PLAYER.DAT|N/A|
+|SAV|Game saves|SAVE#\\PLAYER.DAT|SAVE#\\PLAYER.DAT|
 
 #### DAT
 | File | Description | Game |
@@ -88,7 +102,7 @@ Do **_not_** use ImageMagick if you want to keep the converted files as indexed.
 |------|-------------|------|
 |DATA\ALLPALS.DAT|Auxillary palettes - 16 color palette using colors for PAL.DAT palette 0|Both|
 |DATA\LIGHT.DAT|Light levels - full palette replacement for the view screen based on the light level|Both|
-|DATA\MONO.DAT|Grayscale - full palette replace for the view screen for invisibility|Both|
+|DATA\MONO.DAT|Grayscale - full palette replacement of the view screen for invisibility|Both|
 |DATA\PALS.DAT|Primary palettes - full 256 color palettes - 0 is most utilized|Both|
 |DATA\WEAP.CM|Attack frame palettes|UW2|
 |DATA\WEAPONS.CM|Attack frame palettes|UW1|
@@ -97,12 +111,12 @@ Note:
 While a few data extracts are complete, most contain (at least some) data whose purpose is unclear, unknown, or a best guess.  In those cases I have generally left the data as a hexadecimal byte value where the entire byte is unknown and where part of the byte is known I return each individual bit for the remaining data.
 
 ### LEV/SAV/SCD
-For these data types, you can specify the specific save to extract or the original data version by adding the save number or "d" to the type parameter (i.e. SAV2).  Additionally, you can specify all with * (SCD*).
+For these data types, you can specify the specific save to extract or the original data version (LEV/SCD only) by adding the save number or "d" to the type parameter (i.e. SAV2).  Additionally, you can specify all with * (SCD*).
 
 If none is specified, LEV & SCD will behave as if you specified the data version (i.e. LEVD) and SAV will extract SAVE1 (i.e. SAV1).
 
 ### MAG
-This data type is extracting data from a hardcoded table in the UW/UW2 executable.  The MDL extract which is also pulling data from those has a list of different offsets (position where the data exists in the file) to try as its position in the executable can change based on the file version.  I suspect, but don't know for certain, that will be the case for the magic data as well.
+This data type is extracted from a hardcoded table in the UW/UW2 executable.  The MDL extract which is also pulling data from those has a list of different offsets (position where the data exists in the file) to try as its position in the executable can change based on the file version.  I suspect, but don't know for certain, that will be the case for the magic data as well.
 
 Like everything else, this was written using the GOG versions of UW1/UW2 so only the offset for that version is known/used.  I don't believe it should fail (though it might) if it is in a different place on the version you run it on, the data should just be obviously wrong (i.e. no or incorrect mantras).  If that happens, create an issue and we'll work out a way to send me the executable (not sure we can or it'd be a good idea to attach it since the game is still being sold) so I can investigate and get its offset added.
 
@@ -134,5 +148,4 @@ It's pretty close though.
 ## Credits
 This project began as a simple wrapper for the "hacking" tools created by the [Underworld Adventures](https://vividos.github.io/UnderworldAdventures/) Team.  While much of the original code from them has been heavily altered or completely replaced, quite a bit still remains (string loading/decoding and UW2 decompression are essentially untouched) and all credit goes to them for that.  Even the parts that were rewritten/replaced were vital as that's what I used to learn how to write (a little bit of) ~~C++~~ C.  As importantly, I must thank them for the work they did in documenting the internals of UW1/UW2, without which none of this would have been possible.  I have spent a ridiculous amount of time reading their [uw-formats.txt](https://github.com/vividos/UnderworldAdventures/blob/main/uwadv/docs/uw-formats.txt) document.
 
-Additionally, much credit must be given to hankmorgan and his [reverse engineering documentation](https://github.com/hankmorgan/UWReverseEngineering) as part his work on [UnderworldExporter](https://github.com/hankmorgan/UnderworldExporter).  His work has been invaluable in flushing out much of the details in the data files, saves, and level archives (particularly for UW2).  UnderworldExporter is an active project (at least as of March 2024) and is definitely worth keeping an eye on if you're interested in Ultima Underworld.  Despite it not actually exporting anything :)
-
+Additionally, much credit must be given to hankmorgan and his [reverse engineering documentation](https://github.com/hankmorgan/UWReverseEngineering) as part of his work on [UnderworldExporter](https://github.com/hankmorgan/UnderworldExporter).  His work has been invaluable in flushing out much of the details in the data files, saves, and level archives (particularly for UW2).  UnderworldExporter is an active project (at least as of March 2024) and is definitely worth keeping an eye on if you're interested in Ultima Underworld.  Despite it not actually exporting anything :)
