@@ -11,6 +11,8 @@
 		it makes more sense to have these split into two files/functions
 
 	Todo:
+		Quest flags are incorrect and include 3 which are not
+		Add Quest/Variable/BitField/XClock descriptions
 		Might add some sort of item path like:
 			ItemName (<ObjectID>)\ItemName (<ObjectID>)\<Position>
 			Pack (1)\Sack (3)\2
@@ -19,61 +21,7 @@
 #include <vector>
 
 extern std::string ByteToBitArray(const unsigned char ByteIn);	// Util.cpp
-
-// Used for current level and Moonstone level location
-static std::string UW2LevelName(
-	int LevelID
-) {
-	std::string LevelName = "";
-
-	switch (LevelID) {
-		case  1:	LevelName = "Britannia - Castle of Lord British"; break;
-		case  2:	LevelName = "Britannia - Castle Basement"; break;
-		case  3:	LevelName = "Britannia - Sewer 1"; break;
-		case  4:	LevelName = "Britannia - Sewer 2"; break;
-		case  5:	LevelName = "Britannia - Sewer 3"; break;
-		case  9:	LevelName = "Prison Tower - Basement"; break;
-		case 10:	LevelName = "Prison Tower - First Floor"; break;
-		case 11:	LevelName = "Prison Tower - Second Floor"; break;
-		case 12:	LevelName = "Prison Tower - Third Floor"; break;
-		case 13:	LevelName = "Prison Tower - Fourth Floor"; break;
-		case 14:	LevelName = "Prison Tower - Fifth Floor"; break;
-		case 15:	LevelName = "Prison Tower - Sixth Floor"; break;
-		case 16:	LevelName = "Prison Tower - Seventh Floor"; break;
-		case 17:	LevelName = "Killorn Keep - Level 1"; break;
-		case 18:	LevelName = "Killorn Keep - Level 2"; break;
-		case 25:	LevelName = "Ice Caverns - Level 1"; break;
-		case 26:	LevelName = "Ice Caverns - Level 2"; break;
-		case 33:	LevelName = "Talorus - Level 1"; break;
-		case 34:	LevelName = "Talorus - Level 2"; break;
-		case 41:	LevelName = "Scintillus Academy - Level 1"; break;
-		case 42:	LevelName = "Scintillus Academy - Level 2"; break;
-		case 43:	LevelName = "Scintillus Academy - Level 3"; break;
-		case 44:	LevelName = "Scintillus Academy - Level 4"; break;
-		case 45:	LevelName = "Scintillus Academy - Level 5"; break;
-		case 46:	LevelName = "Scintillus Academy - Level 6"; break;
-		case 47:	LevelName = "Scintillus Academy - Level 7"; break;
-		case 48:	LevelName = "Scintillus Academy - Level 8"; break;
-		case 49:	LevelName = "Tomb of Praecor Loth - Level 1"; break;
-		case 50:	LevelName = "Tomb of Praecor Loth - Level 2"; break;
-		case 51:	LevelName = "Tomb of Praecor Loth - Level 3"; break;
-		case 52:	LevelName = "Tomb of Praecor Loth - Level 4"; break;
-		case 57:	LevelName = "Pits of Carnage - Prison"; break;
-		case 58:	LevelName = "Pits of Carnage - Upper Dungeons"; break;
-		case 59:	LevelName = "Pits of Carnage - Lower Dungeons"; break;
-		case 65:	LevelName = "Ethereal Void - Color Zone"; break;
-		case 66:	LevelName = "Ethereal Void - Purple Zone"; break;
-		case 67:	LevelName = "Scintillus Academy - Secure Vault"; break;
-		case 68:	LevelName = "Ethereal Void - Yellow Zone"; break;
-		case 69:	LevelName = "Ethereal Void"; break;
-		case 71:	LevelName = "Ethereal Void - Red Zone"; break;
-		case 72:	LevelName = "Killorn Deathtrap"; break;
-		case 73:	LevelName = "Tomb of Praecor Loth - Level 3-Alt"; break;
-		default:	LevelName = "Unknown"; break;
-	};
-
-	return LevelName;
-}
+extern std::string UW2LevelName(const int LevelID);				// Util.cpp
 
 static std::map<unsigned int, std::string> UW2MotionState = {
 	{0, "Swimming"},
