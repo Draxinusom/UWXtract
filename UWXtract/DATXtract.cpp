@@ -104,7 +104,7 @@ int DATXtract(
 	// Create CSV export file and header
 		sprintf(TempPath, "%s\\COMOBJ.csv", OutPath.c_str());
 		FILE* out = fopen(TempPath, "w");
-		fprintf(out, "ItemID,ClassID,SubClassID,SubClassIndex,ItemName,ItemString,Height,Radius,IsAnimated,Mass,x3b0,x3b1,IsUseable,IsTemp,IsDecal,x3b5,CanLink,CanStack,IsContainer,MonetaryValue,x6b0,x6b1,QualityClass,x6b4,x6b5,x6b6,x6b7,x7b0,DestroyChance,CanPickup,x7b6,CanBeOwned,VulnerableChance,x8b2,ResistFire,ResistPoison,ResistCold,x8b6,IsUndead,RenderType,CullingPriority,QualityType,LookAtDetail,xAb5,xAb6,xAb7\n");
+		fprintf(out, "ItemID,ClassID,SubClassID,SubClassIndex,ItemName,ItemString,Height,Radius,IsAnimated,Mass,x3b0,x3b1,IsUseable,IsTemp,IsDecal,x3b5,CanLink,CanStack,IsContainer,MonetaryValue,x6b0,x6b1,QualityClass,x6b4,x6b5,x6b6,x6b7,x7b0,DestroyChance,CanPickup,x7b6,CanBeOwned,ResistMagic,ResistPhysical,ResistFire,ResistPoison,ResistCold,ResistMissile,IsUndead,RenderType,CullingPriority,QualityType,LookAtDetail,xAb5,xAb6,xAb7\n");
 
 	// Get number of records
 		fseek(fd, 0, SEEK_END);
@@ -192,12 +192,12 @@ int DATXtract(
 				"%u,"	// CanPickup
 				"%u,"	// x7b6
 				"%u,"	// CanBeOwned
-				"%u,"	// VulnerableChance
-				"%u,"	// x8b2
+				"%u,"	// ResistMagic
+				"%u,"	// ResistPhysical
 				"%u,"	// ResistFire
 				"%u,"	// ResistPoison
 				"%u,"	// ResistCold
-				"%u,"	// x8b6
+				"%u,"	// ResistMissile
 				"%u,"	// IsUndead
 				"%s,"	// RenderType
 				"%u,"	// CullingPriority
@@ -245,12 +245,12 @@ int DATXtract(
 				(buffer[7] & 0x40) >> 6,			// x7b6
 				(buffer[7] & 0x80) >> 7,			// CanBeOwned
 			// 08
-				buffer[8] & 0x03,					// VulnerableChance -- Not sure this is right may be some other immunity types as it also applies to Slasher of Veils
-				(buffer[8] & 0x04) >> 2,			// x8b2 -- Guessing this and x8b6 is a resist type - magic/physical attack/missile I think are other types not IDed elsewhere though could be lightning or some statuses (paralyze/confusion/etc)
+				(buffer[8] & 0x03) == 0x03 ? 1 : 0,	// ResistMagic -- Not sure why this is 2 bits - curious if 1 is damage & 1 is status but all usage has both set if not 00 so kinda moot
+				(buffer[8] & 0x04) >> 2,			// ResistPhysical
 				(buffer[8] & 0x08) >> 3,			// ResistFire
 				(buffer[8] & 0x10) >> 4,			// ResistPoison
 				(buffer[8] & 0x20) >> 5,			// ResistCold
-				(buffer[8] & 0x40) >> 6,			// x8b6
+				(buffer[8] & 0x40) >> 6,			// ResistMissile
 				(buffer[8] & 0x80) >> 7,			// IsUndead
 			// 09
 				RenderType,							// RenderType
