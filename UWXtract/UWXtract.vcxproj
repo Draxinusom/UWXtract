@@ -90,6 +90,7 @@
     <ClInclude Include="UWXtract.h" />
     <ClInclude Include="LEVXtract.hpp" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="VariableUW2.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="UWXtract.rc" />
