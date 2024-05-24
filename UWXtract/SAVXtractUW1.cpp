@@ -680,14 +680,14 @@ int ProcessUW1SAV(
 		);
 	}
 
-// 0065-0068 -- QuestFlag (Primary)
+// 0065-0068 -- Quest (Primary)
 	{
 		unsigned int QuestFlag = ((SAVData[104] << 24) | (SAVData[103] << 16) | (SAVData[102] << 8) | SAVData[101]);
 
 		for (int b = 0; b < 32; b++) {
 			std::string Property;
 			switch (b) {
-				case  0:	Property = "MurgoFree"; break;				// Set if freed by Sseetharee or Murgo talked to after door opened (breakout?)
+				case  0:	Property = "MurgoFree"; break;				// Set if freed by Sseetharee or Murgo talked to after door opened
 				case  1:	Property = "HagbardMet"; break;				// Checked by Gulik
 				case  2:	Property = "DrOwlMet"; break;				// Checked by Murgo
 				case  3:	Property = "KetchavalPermission"; break;	// Set by Retichall -- Checked by Ketchaval
@@ -706,7 +706,7 @@ int ProcessUW1SAV(
 				SaveOut,
 				"%04X.%02X,"		// Offset
 				"1,"				// Size
-				"QuestFlag%02u_%s,"	// Property
+				"Quest%02u_%s,"	// Property
 				"%u\n",				// Value
 				101 + FileByteOffset, b,	// Offset
 				b, Property.c_str(),		// Property
@@ -715,7 +715,7 @@ int ProcessUW1SAV(
 		}
 	}
 
-// 0069 -- QuestFlag (KnightOfTheCrux)
+// 0069 -- Quest (KnightOfTheCrux)
 	{
 		std::string Value;
 		switch (SAVData[105]) {
@@ -731,20 +731,20 @@ int ProcessUW1SAV(
 			SaveOut,
 			"%04X,"							// Offset
 			"1,"							// Size
-			"QuestFlag32_KnightOfTheCrux,"	// Property
+			"Quest32_KnightOfTheCrux,"	// Property
 			"%s\n",							// Value
 			105 + FileByteOffset,	// Offset
 			Value.c_str()			// Value
 		);
 	}
 
-// 006A-006C -- QuestFlag (Unknown)
+// 006A-006C -- Quest (Unknown)
 	for (int b = 0; b < 3; b++) {
 		fprintf(
 			SaveOut,
 			"%04X,"					// Offset
 			"1,"					// Size
-			"QuestFlag%u_Unknown,"	// Property
+			"Quest%u_Unknown,"	// Property
 			"%02X\n",				// Value
 			106 + FileByteOffset + b,	// Offset
 			33 + b,						// Property
@@ -752,34 +752,34 @@ int ProcessUW1SAV(
 		);
 	}
 
-// 006D -- QuestFlag (TalismanLeft)
+// 006D -- Quest (TalismanLeft)
 	fprintf(
 		SaveOut,
 		"%04X,"						// Offset
 		"1,"						// Size
-		"QuestFlag36_TalismanLeft,"	// Property
+		"Quest36_TalismanLeft,"	// Property
 		"%u\n",						// Value
 		109 + FileByteOffset,	// Offset
 		SAVData[109]			// Value
 	);
 
-// 006E -- QuestFlag (GaramonDreamState)
+// 006E -- Quest (GaramonDreamState)
 	fprintf(
 		SaveOut,
 		"%04X,"							// Offset
 		"1,"							// Size
-		"QuestFlag37_GaramonDreamState,"// Property
+		"Quest37_GaramonDreamState,"// Property
 		"%u\n",							// Value
 		110 + FileByteOffset,	// Offset
 		SAVData[110]			// Value
 	);
 
-// 006F -- QuestFlag (Unknown)
+// 006F -- Quest (Unknown)
 	fprintf(
 		SaveOut,
 		"%04X,"					// Offset
 		"1,"					// Size
-		"QuestFlag38_Unknown,"	// Property
+		"Quest38_Unknown,"	// Property
 		"%02X\n",				// Value
 		111 + FileByteOffset,		// Offset
 		SAVData[111]				// Value
