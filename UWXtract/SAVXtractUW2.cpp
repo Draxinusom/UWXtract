@@ -11,8 +11,6 @@
 		it makes more sense to have these split into two files/functions
 
 	Todo:
-		Quest flags are incorrect and include 3 which are not
-		Add Quest/Variable/BitField/XClock descriptions
 		Might add some sort of item path like:
 			ItemName (<ObjectID>)\ItemName (<ObjectID>)\<Position>
 			Pack (1)\Sack (3)\2
