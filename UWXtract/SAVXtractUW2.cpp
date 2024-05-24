@@ -18,6 +18,7 @@
 			Pack (1)\Sack (3)\2
 *************/
 #include "UWXtract.h"
+#include "VariableUW2.hpp"
 #include <vector>
 
 extern std::string ByteToBitArray(const unsigned char ByteIn);	// Util.cpp
@@ -812,64 +813,200 @@ int ProcessUW2SAV(
 			"Class,"	// Property
 			"%u: %s\n",	// Value
 			102,	// Offset
-			SAVData[102] >> 5, CleanDisplayName(gs.get_string(2, (SAVData[102] >> 5) + 23).c_str(), true, false).c_str()	// Value
+			SAVData[102] >> 5, CleanDisplayName(gs.get_string(2, (SAVData[102] >> 5) + 23), true, false).c_str()	// Value
 		);
 	}
 
 /***
-	0067-00F9 -- Quests
-	There are a lot of these that will take some time to sort through and get labelled based on what's documented already and whatever I can figure out (if anything)
+	0067-00E6 -- Quest - Flags
+	First 128 Quest values are stored kinda odd, with 4 quests stored in 4 byte blocks but one the first 4 bits of the first byte (little endian) used
 
-	UnderworldExporter has documented and is treating (most) of these as int values but then also documented each byte (where known) individually for what quest it is for
-	which does _look_ to me to be how they should be handled based on how I'm seeing them set by traps, so I'm not entirely clear why the mixed documentation/usage
-	May just be how they're read into memory?
-
-	For now I'm just going to dump them all as bytes and come back to this later to decide if this needs changed and label them/clean up the display value
+	Somewhat baffled by the thought process behind this
 ***/
-	for (int q = 0; q < 147; q++) {
+	for (int b = 0; b < 32; b++) {
+		for (int q = 0; q < 4; q++) {
+			std::string QuestName = UW2Quest[(b * 4) + q];
+			if (QuestName != "") {
+				QuestName = "_" + QuestName;
+			}
+
+			fprintf(
+				SaveOut,
+				"%04X.%u,"			// Offset (+Bit)
+				"4,"				// Size
+				"Quest%03u%s,"	// Property
+				"%u\n",														// Value
+				103 + (b * 4), q,											// Offset (+Bit)
+				(b * 4) + q, QuestName.c_str(),								// Property
+				((SAVData[103 + (b * 4)] >> q) & 0x01) == 0x01 ? 1 : 0		// Value
+			);
+		}
+	}
+
+/***
+	00E7-00F6 -- Quest - Bytes
+	Next 16 Quest values are stored as full bytes with 3 known to be world bitfields
+***/
+	for (int q = 0; q < 16; q++) {
+		std::string QuestValue = "";
+		unsigned int QuestID = 128 + q;
+
+		std::string QuestName = UW2Quest[QuestID];
+		if (QuestName != "") {
+			QuestName = "_" + QuestName;
+		}
+
+	// PrisonTowerPassword -- Note:  Password is not case sensitive -- Note:  Supposidly is reused as BrainCreature kill counter in KK2 - making the assumption it uses the second nibble for that but leaving out until tested
+		if (QuestID == 134) {
+			switch (SAVData[231 + q] & 0x0F) {
+				case 0: QuestValue = "0: NotSet"; break;	// Password is (semi) randomly set in conversation when first asked password or told it by Borne if 0
+				case 1:	QuestValue = "1: Swordfish"; break;
+				case 2:	QuestValue = "2: Melanoma"; break;
+				case 3:	QuestValue = "3: Silhouette"; break;
+				case 4:	QuestValue = "4: Cyclone"; break;
+				case 5:	QuestValue = "5: Harbinger"; break;
+				case 6:	QuestValue = "6: Meander"; break;
+				case 7:	QuestValue = "7: Quicksilver"; break;
+				case 8:	QuestValue = "8: Shibboleth"; break;
+				case 9:	QuestValue = "9: Fisticuffs"; break;
+			};
+		}
+	// LinesOfPowerCut/BlackrockGemsUsed/WorldsKnown -- BitFields
+		else if (QuestID == 128 || QuestID == 130 || QuestID == 131) {
+			for (int b = 0; b < 8; b++) {
+				if ((SAVData[231 + q] & (0x01 << b)) == (0x01 << b)) {
+					std::string WorldName = "";
+					switch (b) {
+						case 0: WorldName = "Prison Tower"; break;
+						case 1: WorldName = "Killorn Keep"; break;
+						case 2: WorldName = "Ice Caverns"; break;
+						case 3: WorldName = "Talorus"; break;
+						case 4: WorldName = "Scintillus Academy"; break;
+						case 5: WorldName = "Tomb of Praecor Loth"; break;
+						case 6: WorldName = "Pits of Carnage"; break;
+						case 7: WorldName = "Ethereal Void"; break;
+					}
+					if (QuestValue == "") {
+						QuestValue += WorldName;
+					}
+					else {
+						QuestValue += "/" + WorldName;
+					}
+				}
+			}
+
+			if (QuestValue == "") {
+				QuestValue = "None";
+			}
+		}
+	// CutsceneToPlay
+		else if (QuestID == 143) {
+		// Skip if 00 - That would point to the intro cutscene
+			if (SAVData[231 + q] != 0x00) {
+				char CutSceneID[5];
+				sprintf(CutSceneID, "CS%03o", SAVData[231 + q]);
+
+				QuestValue = CutSceneID;
+			}
+			else {
+				QuestValue = "None";
+			}
+		}
+	// ArenaOpponentsKilled/JospurDebt/BloodWormsKilled -- Numeric values
+		else if (QuestID == 129 || QuestID == 133 || QuestID == 135) {
+			QuestValue = std::to_string(SAVData[231 + q]);
+		}
+	// Unknown -- Leave as hex
+		else {
+			char UnknownValue[2];
+			sprintf(UnknownValue, "%02X", SAVData[231 + q]);
+
+			QuestValue = UnknownValue;
+		}
+
 		fprintf(
 			SaveOut,
 			"%04X,"				// Offset
 			"1,"				// Size
-			"QuestFlag%03u,"	// Property
-			"%02X\n",				// Value
-			103 + q,				// Offset
-			q,						// Property
-			SAVData[103 + q]		// Value
+			"Quest%03u%s,"	// Property
+			"%s\n",				// Value
+			231 + q,				// Offset
+			q + 128, QuestName.c_str(),	// Property
+			QuestValue.c_str()		// Value
+		);
+	}
+
+// 00F7-00F9 -- Unknown
+	for (int b = 0; b < 3; b++) {
+		fprintf(
+			SaveOut,
+			"%04X,"		// Offset
+			"1,"		// Size
+			"Unknown,"	// Property
+			"%02X\n",	// Value
+			247 + b,			// Offset
+			SAVData[247 + b]	// Value
 		);
 	}
 
 /***
-	00FA-01F9 -- Variables
-	Same as quests, I'll circle back to this
+	00FA-01F9 -- Variables - All known usage (except SA vending machines) appears to be treating it as a numeric value so going with that for all (known/unknown)
 ***/
 	for (int v = 0; v < 128; v++) {
+		std::string VariableName = UW2Variable[v];
+		if (VariableName != "") {
+			VariableName = "_" + VariableName;
+		}
+
+		std::string VariableValue = "";
+
+	// SA Vending Machines
+		if (v == 31 || v == 32 || v == 33) {
+			switch (SAVData[250 + (v * 2)]) {
+				case 0:	VariableValue = "0: Fish"; break;
+				case 1:	VariableValue = "1: Piece of Meat"; break;
+				case 2:	VariableValue = "2: Bottle of Ale"; break;
+				case 3:	VariableValue = "3: Leeches"; break;
+				case 4:	VariableValue = "4: Bottle of Water"; break;
+				case 5:	VariableValue = "5: Dagger"; break;
+				case 6:	VariableValue = "6: Lockpick"; break;
+				case 7:	VariableValue = "7: Torch"; break;
+			}
+		}
+		else {
+			VariableValue = std::to_string(SAVData[250 + (v * 2)] | (SAVData[251 + (v * 2)] << 8));
+		}		
+
 		fprintf(
 			SaveOut,
-			"%04X,"			// Offset
-			"2,"			// Size
-			"Variable%03u,"	// Property
-			"%04X\n",		// Value
-			250 + (v * 2),											// Offset
-			v,														// Property
-			SAVData[250 + (v * 2)] | (SAVData[251 + (v * 2)] << 8)	// Value
+			"%04X,"				// Offset
+			"2,"				// Size
+			"Variable%03u%s,"	// Property
+			"%s\n",			// Value
+			250 + (v * 2),				// Offset
+			v, VariableName.c_str(),	// Property
+			VariableValue.c_str()		// Value
 		);
 	}
 
 /***
-	01FA-02F9 -- Bit Field Variables
-	Same as quests, I'll circle back to this
+	01FA-02F9 -- Bit Field Variables -- While classed as bit arrays, their usage is largely just as a single boolean flag or numeric so going with that for these as well
 ***/
 	for (int v = 0; v < 128; v++) {
+		std::string BitFieldName = UW2BitField[v];
+		if (BitFieldName != "") {
+			BitFieldName = "_" + BitFieldName;
+		}
+
 		fprintf(
 			SaveOut,
-			"%04X,"			// Offset
-			"2,"			// Size
-			"BitField%03u,"	// Property
-			"%s%s\n",		// Value
+			"%04X,"				// Offset
+			"2,"				// Size
+			"BitField%03u%s,"	// Property
+			"%u\n",				// Value
 			506 + (v * 2),											// Offset
-			v,														// Property
-			ByteToBitArray(SAVData[507 + (v * 2)]).c_str(), ByteToBitArray(SAVData[506 + (v * 2)]).c_str()	// Value
+			v, BitFieldName.c_str(),								// Property
+			SAVData[506 + (v * 2)] | (SAVData[507 + (v * 2)] << 8)	// Value
 		);
 	}
 
@@ -1168,17 +1305,137 @@ int ProcessUW2SAV(
 		);
 	}
 
-// 036E-037D -- XClock -- Will loop back to flush this out like quests/variables
-	for (int b = 0; b < 16; b++) {
+// 036E-037D -- XClock
+// 036E -- XClock0 -- The Clock XClock
+	{
+		int XClockValue = SAVData[878];
+
+		std::string XCHour = "";
+		std::string XCMinute = "";
+
+	// Set hour -- Starts at current time at start of game which is 5AM so need to offset
+		if (XClockValue < 15) {
+			XCHour = "0" + std::to_string(((XClockValue * 20) / 60) + 5);
+		}
+		else if (XClockValue > 56) {
+			XCHour = "0" + std::to_string(((XClockValue * 20) / 60) -19);
+		}
+		else {
+			XCHour = std::to_string(((XClockValue * 20) / 60) + 5);
+		}
+
+	// Set minute
+		if (XClockValue % 3 == 0) {
+			XCMinute = "00";
+		}
+		else {
+			XCMinute = (XClockValue * 20) % 60;
+		}
+
 		fprintf(
 			SaveOut,
 			"%04X,"		// Offset
 			"1,"		// Size
-			"XClock%X,"	// Property
-			"%02X\n",	// Value
-			878 + b,			// Offset
-			b,					// Property
-			SAVData[878 + b]	// Value
+			"XClock0,"	// Property
+			"%u: %s:%s\n",	// Value
+			878,											// Offset
+			XClockValue, XCHour.c_str(), XCMinute.c_str()	// Value
+		);
+	}
+
+// 036F -- XClock1 -- Main Quest -- Game is open ended in several spots so can't say for certain where you're necessarily at based on XClock value -- Could make a good guess by probing quest flags but meh 
+	{
+		std::string XClockValue = "";
+
+		switch (SAVData[879]) {
+			case  0:	XClockValue = "Trapped"; break;
+			case  1:	XClockValue = "EnteredSewers"; break;
+			case  2:	XClockValue = "PrisonTower"; break;
+			case  3:	XClockValue = "BritanniaGoesDry"; break;
+			case  4:	XClockValue = "LaborDispute"; break;
+			case  5:	XClockValue = "IceCaverns/KillornKeep"; break;
+			case  6:	XClockValue = "IceCaverns/KillornKeep"; break;
+			case  7:	XClockValue = "WaterFound"; break;
+			case  8:	XClockValue = "Murder"; break;
+			case  9:	XClockValue = "PitsOfCarnage/ScintallusAcademy/Talorus"; break;
+			case 10:	XClockValue = "PitsOfCarnage/ScintallusAcademy/Talorus"; break;
+			case 11:	XClockValue = "PitsOfCarnage/ScintallusAcademy/Talorus"; break;
+			case 12:	XClockValue = "SpeakToNelson"; break;
+			case 13:	XClockValue = "TraitorDead"; break;
+			case 14:	XClockValue = "EtherealVoid/TombOfPraecorLoth"; break;
+			case 15:	XClockValue = "EtherealVoid/TombOfPraecorLoth"; break;
+			case 16:	XClockValue = "Invasion"; break;
+			default:	XClockValue = "Unknown"; break;
+		}
+
+		fprintf(
+			SaveOut,
+			"%04X,"					// Offset
+			"1,"					// Size
+			"XClock1_MainQuest,"	// Property
+			"%u: %s\n",				// Value
+			879,								// Offset
+			SAVData[879], XClockValue.c_str()	// Value
+		);
+	}
+
+// 0370 -- XClock2 -- Blackrock Gems Used -- Pretty sure this is a straight counter, doesn't map to world gem is from -- Will modify if discover that is case
+	fprintf(
+		SaveOut,
+		"%04X,"							// Offset
+		"1,"							// Size
+		"XClock2_BlackrockGemsUsed,"	// Property
+		"%u\n",							// Value
+		880,			// Offset
+		SAVData[880]	// Value
+	);
+
+// 0371 -- XClock3 -- Djinn Quest
+	{
+		std::string XClockValue = "";
+
+		switch (SAVData[881]) {
+			case 0:		XClockValue = "NotStarted"; break;
+			case 1:		XClockValue = "HaveDjinnBottle"; break;
+			case 2:		XClockValue = "BasiliskOilMixed"; break;
+			case 3:		XClockValue = "BathedInFilaniumMud"; break;
+			case 4:		XClockValue = "BakedInLava"; break;
+			case 5:		XClockValue = "IronFlesh"; break;
+			case 6:		XClockValue = "DjinnCaptured"; break;
+			default:	XClockValue = "Unknown"; break;
+		}
+
+		fprintf(
+			SaveOut,
+			"%04X,"					// Offset
+			"1,"					// Size
+			"XClock3_DjinnQuest,"	// Property
+			"%u: %s\n",				// Value
+			881,								// Offset
+			SAVData[881], XClockValue.c_str()	// Value
+		);
+	}
+
+// 0372-037F -- Remaining XClocks
+	for (int b = 4; b < 16; b++) {
+		std::string XClockName = "";
+
+		if (b == 14) {
+			XClockName = "_ArenaVictories";
+		}
+		else if (b == 15) {
+			XClockName = "_SCDCounter";
+		}
+
+		fprintf(
+			SaveOut,
+			"%04X,"			// Offset
+			"1,"			// Size
+			"XClock%u%s,"	// Property
+			"%u\n",			// Value
+			878 + b,				// Offset
+			b, XClockName.c_str(),	// Property
+			SAVData[878 + b]		// Value
 		);
 	}
 
