@@ -8,7 +8,6 @@
 	Todo:
 		Handful of unknowns to identify
 		Identify difference between standard/alternate event types (i.e. 2/Move_NPC & 254/Move_NPC_Alt
-		May add in quest and variable (where known/defined) name
 		Determine usage of second u16 in block header and record 1 usage after events processed
 
 	Likely need to check this at various points in the game as a few of these _appear_
@@ -18,6 +17,7 @@
 *************/
 #include "UWXtract.h"
 #include <set>
+#include "VariableUW2.hpp"
 
 extern bool AvailSaveGame(std::string UWPath, int SaveID);		// Util.cpp
 extern std::string ByteToBitArray(const unsigned char ByteIn);	// Util.cpp
@@ -156,7 +156,7 @@ int ProcessSCD(
 
 	sprintf(TempPath, "%s\\%s_Data.csv", OutPath.c_str(), SourcePath);
 	FILE* SCDDataOut = fopen(TempPath, "w");
-	fprintf(SCDDataOut, "Block,EventID,LevelID,LevelName,XClockValue,EventTypeID,EventTypeName,IsRemoved,TargetType,TargetID,TargetName,Goal,GTarg,Attitude,TargetLevelID,TargetLevelName,TargetX,TargetY,HomeX,HomeY,Variable,VariableType,Operator,Value,Unknown1,Unknown2,Unknown3,IsActive\n");
+	fprintf(SCDDataOut, "Block,EventID,Level,XClockValue,EventType,IsRemoved,TargetType,TargetName,Goal,GTarg,Attitude,TargetLevel,TargetX,TargetY,HomeX,HomeY,Variable,VariableType,Operator,Value,Unknown1,Unknown2,Unknown3,IsActive\n");
 
 // Read in SCD.ARK
 	sprintf(TempPath, "%s\\%s\\SCD.ARK", UWPath.c_str(), SourcePath);
@@ -248,12 +248,12 @@ int ProcessSCD(
 		// What values are populated depends on the event type so just declare/initialize a variable to blank and update where applicable
 			std::string LevelName = "";
 			std::string TargetType = "";
-			std::string TargetID;
+		//	std::string TargetID;
 			std::string TargetName = "";
 			std::string Goal = "";
 			std::string GTarg = "";
 			std::string Attitude = "";
-			std::string TargetLevelID = "";
+			//std::string TargetLevelID = "";
 			std::string TargetLevelName = "";
 			std::string TargetX = "";
 			std::string TargetY = "";
@@ -303,14 +303,14 @@ int ProcessSCD(
 					}
 
 				// Set output TargetID
-					TargetID = std::to_string(TargetIntID);
+				//	TargetID = std::to_string(TargetIntID);
 
 				// Lookup target name -- varies by type
 					if (TargetType == "NPC") {
-						TargetName = CleanDisplayName(gs.get_string(7, TargetIntID + 16), true, false);
+						TargetName = std::to_string(TargetIntID) + ": " + CleanDisplayName(gs.get_string(7, TargetIntID + 16), true, false);
 					}
 					else if (TargetType == "Race") {
-						TargetName = CleanDisplayName(gs.get_string(1, TargetIntID + 370), true, false);
+						TargetName = std::to_string(TargetIntID) + ": " + CleanDisplayName(gs.get_string(1, TargetIntID + 370), true, false);
 					}
 				/***
 					Object maps to the ObjectID in that level in LEV.ARK
@@ -321,7 +321,7 @@ int ProcessSCD(
 					add logic to do lookups on anything else so, if that does happen, they'll be blank
 				***/
 					else if (TargetType == "Object" && SCDData[2] == 1 && (TargetIntID == 231 || TargetIntID == 248)) {
-						TargetName = "Guard";
+						TargetName = std::to_string(TargetIntID) + ": Guard";
 					}
 				// Not going to set anything for All type
 				}
@@ -350,8 +350,8 @@ int ProcessSCD(
 			// TargetLevelID/Name
 			  // Move_NPC
 				if (EventTypeID == 2) {
-					TargetLevelID = std::to_string(SCDData[9]);
-					TargetLevelName = UW2LevelName(SCDData[9]);
+					//TargetLevelID = std::to_string(SCDData[9]);
+					TargetLevelName = std::to_string(SCDData[9]) + ": " + UW2LevelName(SCDData[9]);
 				}
 
 			// Target/HomeX/Y
@@ -452,19 +452,31 @@ int ProcessSCD(
 				if (EventTypeID == 7 && SCDData[5] == 1) {
 					unsigned int VariableID = SCDData[10];
 					unsigned int VariableTypeID = SCDData[11];
+					std::string VariableName = "";
 
 				// BitField isn't directly specified and is just handled as a run on of Variable type so alter the reported variable/type to match
 					if (VariableID > 127 && VariableTypeID == 0) {
 						VariableID -= 128;
 						VariableTypeID = 2;
+						VariableName = UW2BitField[VariableID];
 					}
 				// XClock isn't directly specified and is just handled as a run on of Quest type so alter the reported variable/type to match
 					if (VariableID > 143 && VariableTypeID == 1) {
 						VariableID -= 144;
 						VariableTypeID = 3;
+						// Not going to put XClock value names here
 					}
 
-					Variable = std::to_string(VariableID);
+				// VariableName -- Variable
+					if (VariableTypeID == 0) {
+						VariableName = UW2Variable[VariableID];
+					}
+				// Quest
+					else if (VariableTypeID == 1) {
+						VariableName = UW2Quest[VariableID];
+					}
+
+					Variable = std::to_string(VariableID) + (VariableName == "" ? "" : ": " + VariableName);
 					VariableType = SCDVariableType[VariableTypeID];
 					Operator = SCDOperatorSet[SCDData[12]];
 					Value = std::to_string(SCDData[13]);
@@ -473,26 +485,41 @@ int ProcessSCD(
 				else if (EventTypeID == 9) {
 					unsigned int VariableID = SCDData[5];
 					unsigned int VariableTypeID = SCDData[6];
+					std::string VariableName = "";
 
 				// BitField isn't directly specified and is just handled as a run on of Variable type so alter the reported variable/type to match
 					if (VariableID > 127 && VariableTypeID == 0) {
 						VariableID -= 128;
 						VariableTypeID = 2;
+						VariableName = UW2BitField[VariableID];
 					}
 				// XClock isn't directly specified and is just handled as a run on of Quest type so alter the reported variable/type to match
 					if (VariableID > 143 && VariableTypeID == 1) {
 						VariableID -= 144;
 						VariableTypeID = 3;
+						// Not going to put XClock value names here
 					}
 
-					Variable = std::to_string(VariableID);
+				// VariableName -- Variable
+					if (VariableTypeID == 0) {
+						VariableName = UW2Variable[VariableID];
+					}
+				// Quest
+					else if (VariableTypeID == 1) {
+						VariableName = UW2Quest[VariableID];
+					}
+
+					Variable = std::to_string(VariableID) + (VariableName == "" ? "" : ": " + VariableName);
 					VariableType = SCDVariableType[VariableTypeID];
 					Operator = SCDOperatorSet[SCDData[7]];
 					Value = std::to_string(SCDData[8]);
 				}
 			// Set_Quest_Flag
 				else if (EventTypeID == 4) {
-					Variable = std::to_string(SCDData[5]);
+					std::string VariableName = "";
+					VariableName = UW2Quest[SCDData[5]];
+
+					Variable = std::to_string(SCDData[5]) + (VariableName == "" ? "" : ": " + VariableName);
 					VariableType = "Quest";
 					Operator = "SET";
 					Value = std::to_string(SCDData[6]);
@@ -502,20 +529,32 @@ int ProcessSCD(
 				if (EventTypeID == 10) {
 					unsigned int VariableID = SCDData[5];
 					unsigned int VariableTypeID = SCDData[6];
+					std::string VariableName = "";
 
 				// BitField isn't directly specified and is just handled as a run on of Variable type so alter the reported variable/type to match
 					if (VariableID > 127 && VariableTypeID == 0) {
 						VariableID -= 128;
 						VariableTypeID = 2;
+						VariableName = UW2BitField[VariableID];
 					}
 
 				// XClock isn't directly specified and is just handled as a run on of Quest type so alter the reported variable/type to match
 					if (VariableID > 143 && VariableTypeID == 1) {
 						VariableID -= 144;
 						VariableTypeID = 3;
+						// Not going to put XClock value names here
 					}
 
-					Variable = std::to_string(VariableID);
+				// VariableName -- Variable
+					if (VariableTypeID == 0) {
+						VariableName = UW2Variable[VariableID];
+					}
+				// Quest
+					else if (VariableTypeID == 1) {
+						VariableName = UW2Quest[VariableID];
+					}
+
+					Variable = std::to_string(VariableID) + (VariableName == "" ? "" : ": " + VariableName);
 					VariableType = SCDVariableType[VariableTypeID];
 					Operator = SCDOperatorCheck[SCDData[7]];
 					Value = std::to_string(SCDData[10]);
@@ -564,19 +603,19 @@ int ProcessSCD(
 				SCDDataOut,
 				"%u,"	// Block
 				"%u,"	// EventID
-				"%u,"	// LevelID
-				"%s,"	// LevelName
+				"%u%s,"	// Level
+				//"%s,"	// LevelName
 				"%u,"	// XClockValue
-				"%u,"	// EventTypeID
-				"%s,"	// EventTypeName
+				"%u: %s,"	// EventType
+				//"%s,"	// EventTypeName
 				"%u,"	// IsRemoved -- Indicates the event should be removed once executed (i.e. run once) -- Calling it IsRemoved as the record is actually removed from SCD.ARK (game save copy) when executed
 				"%s,"	// TargetType
-				"%s,"	// TargetID
+			//	"%s,"	// TargetID
 				"%s,"	// TargetName
 				"%s,"	// Goal
 				"%s,"	// GTarg
 				"%s,"	// Attitude
-				"%s,"	// TargetLevelID
+				//"%s,"	// TargetLevelID
 				"%s,"	// TargetLevelName
 				"%s,"	// TargetX
 				"%s,"	// TargetY
@@ -592,19 +631,18 @@ int ProcessSCD(
 				"%u\n",	// IsActive
 				b,										// Block
 				r,										// EventID
-				SCDData[2],								// LevelID
-				LevelName.c_str(),						// LevelName
+				SCDData[2], SCDData[2] == 0 ? "" : (": " + LevelName).c_str(),	// LevelID
+				//LevelName.c_str(),						// LevelName
 				SCDData[0],								// XClockValue
-				r == 0 ? 0 : SCDData[4],				// EventTypeID -- Note:  Hiding row 1 (or 0 whatever) value for now
-				r == 0 ? "None" : SCDEventTypeName[SCDData[4]].c_str(),	// EventTypeName -- Also overriding this
+				r == 0 ? 0 : SCDData[4], r == 0 ? "None" : SCDEventTypeName[SCDData[4]].c_str(),				// EventType -- Note:  Hiding row 1 (or 0 whatever) value for now
 				SCDData[3],								// IsRemoved
 				TargetType.c_str(),
-				TargetID.c_str(),
+			//	TargetID.c_str(),
 				TargetName.c_str(),
 				Goal.c_str(),
 				GTarg.c_str(),
 				Attitude.c_str(),
-				TargetLevelID.c_str(),
+				//TargetLevelID.c_str(),
 				TargetLevelName.c_str(),
 				TargetX.c_str(),
 				TargetY.c_str(),
