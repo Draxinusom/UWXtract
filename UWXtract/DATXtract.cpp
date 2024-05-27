@@ -305,7 +305,7 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_MELEE.csv", OutPath.c_str());
 			FILE* OBJECT_MELEE = fopen(TempPath, "w");
-			fprintf(OBJECT_MELEE, "ItemID,Name,SkillID,SkillName,Slash,Bash,Stab,Durability,Speed,MinCharge,MaxChange\n");
+			fprintf(OBJECT_MELEE, "ItemID,Name,SkillID,SkillName,Slash,Bash,Stab,Durability,Speed,MinCharge,MaxCharge\n");
 
 			unsigned char buffer[8];
 			for (int i = 0; i < 0x10; i++) {
@@ -334,7 +334,7 @@ int DATXtract(
 					"%u,"	// Durability
 					"%u,"	// Speed
 					"%u,"	// MinCharge
-					"%u\n",	// MaxChange
+					"%u\n",	// MaxCharge
 					i,			// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
 					buffer[6],	// SkillID
@@ -345,7 +345,7 @@ int DATXtract(
 					buffer[7],	// Durability
 					buffer[4],	// Speed
 					buffer[3],	// MinCharge
-					buffer[5]	// MaxChange
+					buffer[5]	// MaxCharge
 				);
 			}
 			fclose(OBJECT_MELEE);
@@ -440,7 +440,7 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_CRITTER.csv", OutPath.c_str());
 			FILE* OBJECT_CRITTER = fopen(TempPath, "w");
-			fprintf(OBJECT_CRITTER, "ItemID,Name,BaseArmor,Armor1,Armor2,Armor3,HP,STR,DEX,INT,DeathVOC,BloodOnHit,BloodOnDeath,Race,x0Ab0,x0Ab1,Corpse,x0Ab5,Swim,Fly,x0B,MoveSpeed,x0D,x0E,PoisonDamage,Category,Attack,Defense,SlashSkill,SlashDamage,SlashChance,BashSkill,BashDamage,BashChance,StabSkill,StabDamage,StabChance,x1C,SearchDistance,Ears,Eyes,x1F,DropItem1Name,DropItem1Spawn,DropItem2Name,DropItem2Spawn,DropItem3Name,DropItem3Chance,DropItem4Name,DropItem4Chance,DropCoinCalc,DropCoinChance,DropFoodName,DropFoodChance,EXP,Spell1,Spell2,Spell3,IsCaster,StudyMonster,LockPicking,x2F\n");
+			fprintf(OBJECT_CRITTER, "ItemID,Name,BaseArmor,Armor1,Armor2,Armor3,HP,STR,DEX,INT,DeathVOC,BloodOnHit,BloodOnDeath,Race,x0Ab0,x0Ab1,Corpse,x0Ab5,Swim,Fly,x0B,MoveSpeed,ConvLevel,TradeAbility,TradeThreshold,TradePatience,PoisonDamage,Category,Attack,Defense,SlashSkill,SlashDamage,SlashChance,BashSkill,BashDamage,BashChance,StabSkill,StabDamage,StabChance,x1C,SearchDistance,Ears,Eyes,x1F,DropItem1Name,DropItem1Spawn,DropItem2Name,DropItem2Spawn,DropItem3Name,DropItem3Chance,DropItem4Name,DropItem4Chance,DropCoinCalc,DropCoinChance,DropFoodName,DropFoodChance,EXP,Spell1,Spell2,Spell3,IsCaster,StudyMonster,LockPicking,x2F\n");
 
 			for (int i = 0x40; i < 0x80; i++) {
 				unsigned char buffer[48];
@@ -620,8 +620,10 @@ int DATXtract(
 					"%u,"		// Fly
 					"%02X,"		// x0B -- Unknown
 					"%u,"		// MoveSpeed
-					"%02X,"		// x0D -- Unknown
-					"%02X,"		// x0E -- Unknown
+					"%u,"		// ConvLevel
+					"%u,"		// TradeAbility
+					"%u,"		// TradeThreshold
+					"%u,"		// TradePatience
 					"%u,"		// PoisonDamage
 					"%s,"		// Category
 					"%u,"		// Attack
@@ -676,15 +678,17 @@ int DATXtract(
 					CleanDisplayName(gs.get_string(1, buffer[9] + 370).c_str(), true, false).c_str(),	// Race
 					//buffer[10],					// Passiveness -- Nope
 					buffer[10] & 0x01,				// x0Ab0 -- Unknown
-					buffer[10] & 0x02 >> 1,			// x0Ab1 -- Unknown -- Only set on UW1 for Ethereal Void creatures, Wisp, and Player
+					(buffer[10] & 0x02) >> 1,		// x0Ab1 -- Unknown -- Only set on UW1 for Ethereal Void creatures, Wisp, and Player
 					CleanDisplayName(gs.get_string(4, ((buffer[10] & 0x1C) >> 2) + CorpseOffset).c_str(), true, false).c_str(),	// Corpse
-					buffer[10] & 0x20 >> 5,			// x0Ab5 -- Unknown
-					buffer[10] & 0x40 >> 6,			// Swim
-					buffer[10] & 0x80 >> 7,			// Fly
+					(buffer[10] & 0x20) >> 5,		// x0Ab5 -- Unknown
+					(buffer[10] & 0x40) >> 6,		// Swim
+					(buffer[10] & 0x80) >> 7,		// Fly
 					buffer[11],						// x0B -- Unknown
 					buffer[12],						// MoveSpeed
-					buffer[13],						// x0D -- Unknown
-					buffer[14],						// x0E -- Unknown
+					buffer[13] & 0x0F,				// ConvLevel
+					buffer[13] >> 4,				// TradeAbility
+					buffer[14] & 0x0F,				// TradeThreshold
+					buffer[14] >> 4,				// TradePatience
 					buffer[15],						// PoisonDamage
 					Category,						// Category (16)
 					buffer[17],						// Attack
