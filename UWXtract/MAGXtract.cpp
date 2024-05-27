@@ -8,7 +8,7 @@
 	Note:	Contains all player castable spells plus a few extra -- Need to check but guessing they're either scrolls or wands the player can use
 
 	Todo:
-		There's 4 bits I'm not sure what they mean/do but have pretty obvious
+		There's 2 bits I'm not sure what they mean/do but have pretty obvious
 		spell type groupings where set so may attempt to sort those out
 *************/
 #include "UWXtract.h"
@@ -59,7 +59,7 @@ int MAGXtract(
 // Create CSV export file and header
 	sprintf(TempPath, "%s\\MAG.csv", OutPath.c_str());
 	FILE* MagOut = fopen(TempPath, "w");
-	fprintf(MagOut, "SpellID,Circle,SpellName,Rune1,Rune2,Rune3,Class,SubClass,b31,b29,b01,b00\n");
+	fprintf(MagOut, "SpellID,Circle,SpellName,Rune1,Rune2,Rune3,Class,SubClass,TargetType,b31,b29\n");
 
 // Magic table is embedded in executable
 	sprintf(TempPath, "%s\\UW%s.EXE", UWPath.c_str(), !IsUW2 ? "" : "2");
@@ -72,7 +72,6 @@ int MAGXtract(
 	unsigned int RecordCount = !IsUW2 ? 0x35 : 0x45;
 	unsigned int MTableOffset = !IsUW2 ? 0x059EF0 : 0x066490;
 	fseek(UWEXE, MTableOffset, SEEK_SET);
-
 
 	for (unsigned int s = 0; s < RecordCount; s++) {
 		unsigned char SpellData[4];
@@ -107,6 +106,20 @@ int MAGXtract(
 			Circle = "8";
 		}
 
+	// TargetType -- Whether spell fires immediately or you need to target/aim the spell
+		std::string TargetType = "";
+		if (((SpellVal >> 1) & 0x01) == 0x01) {
+			TargetType = "NonCombat";	// Uses CURSORS.GR 10
+		}
+		else if ((SpellVal & 0x01) == 0x01) {
+			TargetType = "Combat";		// Uses CURSORS.GR 9
+		}
+	/*** May be misleading - will leave blank and think of something better later (maybe)
+		else {
+			TargetType = "Instant";
+		}
+	***/
+
 	// Export to CSV -- Note:  bits 29, 23, & 02 are unused and always 0 so excluding
 		fprintf(
 			MagOut,
@@ -118,10 +131,9 @@ int MAGXtract(
 			"%s,"	// Rune3
 			"%u,"	// Class
 			"%u,"	// SubClass
+			"%s,"	// TargetType
 			"%u,"	// b31
-			"%u,"	// b30
-			"%u,"	// b02
-			"%u\n",	// b01
+			"%u\n",	// b30
 			s,												// SpellID -- Maybe should add 256 to match to string ID but going to leave as is since it's from the EXE's table
 			Circle.c_str(),									// Circle
 			gs.get_string(6, s + 256).c_str(),				// Spell
@@ -130,10 +142,9 @@ int MAGXtract(
 			RuneStoneMap[(SpellVal >> 8) & 0x1F].c_str(),	// Rune3
 			(SpellVal >> 3) & 0x1F,							// Class
 			(SpellVal >> 24) & 0x1F,						// SubClass
-			SpellVal >> 31,									// b31
-			(SpellVal >> 30) & 0x01,						// b30
-			(SpellVal >> 1) & 0x01,							// b01
-			SpellVal & 0x01									// b00
+			TargetType.c_str(),								// TargetType
+			SpellVal >> 31,									// b31	-- Think I know what these two are now
+			(SpellVal >> 30) & 0x01							// b30
 		);
 	}
 
