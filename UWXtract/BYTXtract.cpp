@@ -5,9 +5,6 @@
 
 	Heavily modified version of the "hacking" bytdecode function by the
 	Underworld Adventures Team to extract images from BYT files/archives
-
-	Todo:
-		Add image description to log
 *************/
 #include "UWXtract.h"
 #include <algorithm>
@@ -57,6 +54,43 @@ static std::map<unsigned short, unsigned int> BYTARKPaletteMap = {
 	{ 8, 0},	// Victory "Congratulations" message
 	{ 9, 0},	// Victory character stats/info screen background
 	{10, 0}		// Unused/Skipped
+};
+
+static std::map<std::string, std::string> BYTFileDescription = {
+// UW1
+	{"blnkmap.byt", "Automap background"},
+	{"chargen.byt", "Create Character background"},
+	{"conv.byt", "Conversation screenshot (Unused)"},
+	{"main.byt", "HUD background"},
+	{"opscr.byt", "Opening screen background"},
+	{"pres1.byt", "Startup \"ORIGIN Presents\" screen"},
+	{"pres2.byt", "Startup \"A BLUE SKY PRODUCTIONS Game\" screen"},
+	{"win1.byt", "Victory \"Congratulations\" message"},
+	{"win2.byt", "Victory character stats/info background"},
+// UW2 LBACK00X.BYT
+	{"lback000.byt", "Opening - Britain \"The Festival of Rebuilding\" scene (Combined with LBACK001 and panned right to left)"},
+	{"lback001.byt", "Opening - Britain \"The Festival of Rebuilding\" scene (Combined with LBACK000 and panned right to left)"},
+	{"lback002.byt", "Opening - Castle courtyard scene (Combined with LBACK003 and panned top to bottom)"},
+	{"lback003.byt", "Opening - Castle courtyard scene (Combined with LBACK002 and panned top to bottom)"},
+	{"lback004.byt", "Ending - Throne room scene (Combined with LBACK005 and panned bottom to top)"},
+	{"lback005.byt", "Ending - Throne room scene (Combined with LBACK004 and panned bottom to top)"},
+	{"lback006.byt", "Ending - Castle balcony scene (Combined with LBACK007 and panned left to right)"},
+	{"lback007.byt", "Ending - Castle balcony scene (Combined with LBACK006 and panned left to right)"}
+};
+
+// UW2 BYT.ARK
+static std::map<unsigned short, std::string> BYTARKDescription = {
+	{ 0, "Automap background"},
+	{ 1, "Create Character background"},
+	{ 2, "Bartering screen background"},
+	{ 3, "Unused"},
+	{ 4, "HUD background"},
+	{ 5, "Opening screen background"},
+	{ 6, "Startup \"ORIGIN An Electronic Arts Company Presents\" screen"},
+	{ 7, "Startup \"A LookingGlass Technologies Game\""},
+	{ 8, "Victory \"Congratulations\" message"},
+	{ 9, "Victory character stats/info background"},
+	{10, "Unused"}
 };
 
 void UncompressUW2BYT(
@@ -175,7 +209,7 @@ void SaveImage(
 
 	FILE* tga = fopen(tga_fname, "wb");
 
-	TGAWriteHeader(tga, Width, Height, 1, 1);
+	TGAWriteHeader(tga, Width, Height, 24);
 
 // Write palette
 	fwrite(allPalettes + paletteIndex * 256 * 3, 1, 256 * 3, tga);
@@ -198,7 +232,7 @@ int BYTXtract(
 // Create log
 	sprintf(TempPath, "%s\\BYT.csv", OutPath.c_str());
 	FILE* log = fopen(TempPath, "w");
-	fprintf(log, "FileName,Index,Width,Height,Type,Palette\n");
+	fprintf(log, "FileName,Index,Width,Height,Type,Palette,Description\n");
 
 	if (!IsUW2) {
 	// Get all color palettes -- Only need a few but easier to just grab all
@@ -229,9 +263,11 @@ int BYTXtract(
 				"320,"					// Width
 				"200,"					// Height
 				"8-bit uncompressed,"	// Type -- No real type but basically what these are
-				"%u\n",					// Palette
-				find.name,		// FileName
-				PaletteIndex	// Palette
+				"%u,"					// Palette
+				"%s\n",					// Description
+				find.name,													// FileName
+				PaletteIndex,												// Palette
+				BYTFileDescription[StringToLowerCase(find.name)].c_str()	// Description
 			);
 
 		} while (0 == _findnext(hnd, &find));
@@ -289,8 +325,9 @@ int BYTXtract(
 						"%u,"		// Index
 						","			// Width
 						","			// Height
-						"Unused,"	// Type
-						"\n",		// Palette
+						","			// Type
+						","			// Palette
+						"Unused\n",	// Description
 						offsetIndex		// Index
 					);
 					continue;
@@ -318,7 +355,7 @@ int BYTXtract(
 
 				FILE* tga = fopen(TempPath, "wb");
 
-				TGAWriteHeader(tga, Width, Height, 1, 1);
+				TGAWriteHeader(tga, Width, Height, 24);
 
 				// write palette
 				fwrite(AllPalette[PaletteIndex], 1, 256 * 3, tga);
@@ -334,9 +371,11 @@ int BYTXtract(
 					"320,"					// Width
 					"200,"					// Height
 					"8-bit uncompressed,"	// Type -- No real type but basically what these are
-					"%u\n",					// Palette
-					offsetIndex,	// Index
-					PaletteIndex	// Palette
+					"%u,"					// Palette
+					"%s\n",					// Description
+					offsetIndex,							// Index
+					PaletteIndex,							// Palette
+					BYTARKDescription[offsetIndex].c_str()	// Description
 				);
 			} // end for
 
@@ -421,9 +460,11 @@ int BYTXtract(
 					"320,"					// Width
 					"200,"					// Height
 					"8-bit uncompressed,"	// Type -- No real type but basically what these are
-					"%s\n",					// Palette
-					find.name,			// FileName
-					LBPalette.c_str()	// Palette
+					"%s,"					// Palette
+					"%s\n",					// Description
+					find.name,												// FileName
+					LBPalette.c_str(),										// Palette
+					BYTFileDescription[StringToLowerCase(find.name)].c_str()	// Description
 				);
 
 			} while (0 == _findnext(hnd, &find));
