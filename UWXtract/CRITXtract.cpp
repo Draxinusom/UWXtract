@@ -13,7 +13,7 @@
 *************/
 #include "UWXtract.h"
 
-extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 3]);	// Util.cpp
+extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
 
 void ImageDecode4BitRLE(
 	FILE* fd,
@@ -257,7 +257,7 @@ std::string NPCNameFix(
 				switch(auxpal) {
 					case 0:	NPCName = "Lord"; break;
 					case 1:	NPCName = IsDisplayName ? "Liche Wizard" : "LicheWizard"; break;
-					
+
 				}
 				break;
 			case 026:
@@ -319,7 +319,7 @@ void CRITXtractUW1(
 	char TempPath[256];
 
 // Get palette 0 -- Auxillary palettes stored in critter page files and loaded later
-	char palette[256 * 3];
+	char palette[256 * 4];
 	GetPalette(UWPath, 0, palette);
 
 // Read in game strings
@@ -347,7 +347,7 @@ void CRITXtractUW1(
 		fread(critname, 8, 32, assoc);
 	// Get animation to critter mapping
 		fread(CritNPC, 2, 64, assoc);
-	  
+
 	// Export summary log and create output folders
 		for (int i = 0; i < 64; i++) {
 			unsigned int AnimID = CritNPC[i][0];
@@ -558,10 +558,10 @@ void CRITXtractUW1(
 						FILE* tga = fopen(buffer, "wb");
 
 					// Write header
-						TGAWriteHeader(tga, width, height, 1, 1);
+						TGAWriteHeader(tga, width, height);
 
 					// Write palette
-						fwrite(palette, 1, 256 * 3, tga);
+						fwrite(palette, 1, 256 * 4, tga);
 
 					// Write data
 						ImageDecode4BitRLE(pfile, tga, wsize, width * height, auxpals + (32 * (TargetPal)));
@@ -594,7 +594,7 @@ void CRITXtractUW2(
 	char TempPath[256];
 
 // Get palette 0 -- Auxillary palettes stored in critter page files and loaded later
-	char palette[256 * 3];
+	char palette[256 * 4];
 	GetPalette(UWPath, 0, palette);
 
 // Read in game strings
@@ -618,7 +618,7 @@ void CRITXtractUW2(
 		sprintf(TempPath, "%s\\CRIT\\AS.AN", UWPath.c_str());
 		FILE* assoc = fopen(TempPath, "rb");
 		fread(CritNPC, 2, 64, assoc);
-		
+
 	// Export summary log and create output folders
 		for (int i = 0; i < 64; i++) {
 			unsigned int AnimID = CritNPC[i][0];
@@ -806,10 +806,10 @@ void CRITXtractUW2(
 					FILE* tga = fopen(buffer, "wb");
 
 				// Write header
-					TGAWriteHeader(tga, width, height, 1, 1);
+					TGAWriteHeader(tga, width, height);
 
 				// Write palette
-					fwrite(palette, 1, 256 * 3, tga);
+					fwrite(palette, 1, 256 * 4, tga);
 
 				// Write data
 					ImageDecode4BitRLE(pfile, tga, wsize, width * height, auxpals + (32 * (TargetPal)));
