@@ -53,8 +53,8 @@ std::string ByteToBitArray(
 	return BitArray;
 }
 
-
-// Returns the specified palette, reformatted for export (primarily used just for 0)
+/*** Deprecated -- Going to leave in case ever have need for 24bit function
+// Returns the specified palette, reformatted for TGA export (BGR)
 void GetPalette(
 	const std::string UWPath,
 	const unsigned int PaletteIndex,
@@ -82,8 +82,49 @@ void GetPalette(
 		PaletteBuffer[(c * 3) + 2] = RedTemp;
 	}
 }
+***/
 
-// Returns all standard palettes, reformatted for export
+// Returns the specified palette, reformatted for TGA export including alpha channel (BGRA)
+void GetPalette(
+	const std::string UWPath,
+	const unsigned int PaletteIndex,
+	char PaletteBuffer[256 * 4]
+) {
+	FILE* PALS = fopen((UWPath + "\\DATA\\PALS.DAT").c_str(), "rb");
+	char TempBuffer[256 * 3];
+
+// Seek to and get target palette
+	fseek(PALS, PaletteIndex * (256 * 3), SEEK_SET);
+	fread(TempBuffer, 1, 256 * 3, PALS);
+	fclose(PALS);
+
+// Left shift color value 2 to convert from 64 to 256 range
+	for (int v = 0; v < 256 * 3; v++) {
+		TempBuffer[v] <<= 2;
+	}
+
+// Then swap palette type from standard RGB to TGA style BGR
+	for (int c = 0; c < 256; c++) {
+	// First capture the red value
+		char RedTemp = TempBuffer[c * 3];
+	// Then overwrite with blue
+		TempBuffer[c * 3] = TempBuffer[(c * 3) + 2];
+	// And finally overwrite blue with red
+		TempBuffer[(c * 3) + 2] = RedTemp;
+	}
+
+// Now populate return buffer, inserting alpha byte
+	for (int c = 0; c < 256; c++) {
+		PaletteBuffer[(c * 4) + 0] = TempBuffer[(c * 3) + 0];
+		PaletteBuffer[(c * 4) + 1] = TempBuffer[(c * 3) + 1];
+		PaletteBuffer[(c * 4) + 2] = TempBuffer[(c * 3) + 2];
+	// Add alpha byte -- Only first color should be alpha
+		PaletteBuffer[(c * 4) + 3] = (c == 0 ? 0x00 : 0xFF);
+	}
+}
+
+
+// Returns all standard palettes, reformatted for export -- Only usage is BYTXtract which is 24-bit only so no alpha byte
 void GetPaletteAll(
 	const std::string UWPath,
 	const bool IsUW2,
