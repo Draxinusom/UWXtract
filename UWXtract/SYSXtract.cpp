@@ -8,7 +8,7 @@
 #include "UWXtract.h"
 
 extern std::string ByteToBitArray(unsigned char ByteIn);	// Util.cpp
-extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 3]);	// Util.cpp
+extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
 
 int SYSXtract(
 	bool IsUW2,
@@ -28,7 +28,7 @@ int SYSXtract(
 	char TempPath[256];
 
 // Get palette 0 -- A bit variable where they're used with some fonts so not going to try matching it to the correct one as there may be multiple, just picking the most common
-	char Palette[256 * 3];
+	char Palette[256 * 4];
 	GetPalette(UWPath, 0, Palette);
 
 // Just using white (or closest to) for the character's color -- Note: white is a different index between games in palette 0
@@ -192,9 +192,9 @@ int SYSXtract(
 			FILE* TGAOutFile = fopen(TempPath, "wb");
 
 		// Write header
-			TGAWriteHeader(TGAOutFile, CharWidth, FontHeader[2], 1, 1);
+			TGAWriteHeader(TGAOutFile, CharWidth, FontHeader[2]);
 		// Write palette
-			fwrite(Palette, 1, 256 * 3, TGAOutFile);
+			fwrite(Palette, 1, 256 * 4, TGAOutFile);
 		// Write data
 			fwrite(TGAOutBuffer, 1, FontHeader[2] * CharWidth, TGAOutFile);
 		// And close
