@@ -35,53 +35,80 @@ class ua_gamestrings {
 
 // Write TGA file header
 inline void TGAWriteHeader(
-	FILE* fd,
-	unsigned short width,
-	unsigned short height,
-	unsigned char type = 2,
-	unsigned char colmap = 0,
-	bool bottomup = false
+	FILE* OutFile,
+	unsigned short Width,
+	unsigned short Height,
+	unsigned char Depth = 32,	// BYTXtract is 24 - CRIT/GR/SYS/TR are 32
+// These values are used for all images extracted
+	unsigned char Type = 1,
+	unsigned char HasColorMap = 1,
+	unsigned char ImageDataOrder = 0x20	// TopLeft
 ) {
 #pragma pack(push,1)
 
 // TGA header struct
-	struct tgaheader {
-		unsigned char idlength;     // length of id field after header
-		unsigned char colormaptype; // 1 if a color map is present
-		unsigned char tgatype;      // tga type
+	struct TGAHeader {
+		unsigned char IDLength;     // ImageID field bytes after header 0-255 (looks like metadata)
+		unsigned char ColorMapType; // Boolean flag if color map included (indexed)
+		unsigned char TGAType;
+			/***
+				0:	No image data (no idea point of this)
+				1:	Uncompressed - Color-mapped	(This is only type used in UWXtract)
+				2:	Uncompressed - True-color
+				3:	Uncompressed - Black/White
+				9:	Run-Length - Color-mapped
+				10:	Run-Length - True-color
+				11:	Run-Length - Black/White
+			***/
 
-	// Colormap not used
-		unsigned short colormaporigin;
-		unsigned short colormaplength;
-		unsigned char colormapdepth;
+	// ColorMap -- Should be all 0s if not used but ignored if TGAType set to non-colormap type
+		unsigned short ColorMapOffset;	// Offset to first color in map to use -- Should pretty much always be 0
+		unsigned short ColorMapLength;	// Number of colors in map (colors, not bytes)
+		unsigned char ColorMapDepth;	// Number of bits used for each color (3 * bits + Alpha)
 
-	// X and Y origin
-		unsigned short xorigin, yorigin;
-	// Width and height
-		unsigned short width, height;
+	// X/YOrigin
+		unsigned short XOrigin, YOrigin;	// Starting offset of image data based on bits 4-5 of ImageDescriptor byte
+	// ImageWidth/Height
+		unsigned short Width, Height;		// Image dimensions in pixels
 
-	// Bits per pixel, either 16, 24 or 32
-		unsigned char bitsperpixel;
-		unsigned char imagedescriptor;
+		unsigned char BitsPerPixel;			// Number of bits used per pixel -- Generally 24 or 32 for non-colormap, though 8/16 are standards -- Can be 1-8 for colormap types, depending on size of colormap table
+		unsigned char ImageDescriptor;
+			/***
+				Bits 0-3:	Number of bits per pixel to use for alpha -- Can also mean number of overlay bits but not relevant here
+				Bit 4:		Image data order -- 0=Left>Right - 1=Right>Left
+				Bit 5:		Image data order -- 0=Bottom>Top - 1=Top>Bottom
+				Bits 6-7:	Unused
+			***/
 	}
-	tgaheader = {
+	TGAHeader = {
+	// IDLength
 		0,
-		colmap,
-		type,
-
+	// ColorMapType
+		HasColorMap,
+	// TGAType
+		Type,
+	// ColorMapOffset
 		0,
-		(unsigned short)(colmap == 1 ? 256 : 0),
-		(unsigned char)(colmap == 1 ? 24 : 0),
-
-		0, 0,
-		width, height,
-
-		(unsigned char)(colmap == 1 ? 8 : 32),
-		(unsigned char)(bottomup ? 0x00 : 0x20)
+	// ColorMapLength
+		(unsigned short)(HasColorMap == 1 ? 256 : 0),
+	// ColorMapDepth
+		(unsigned char)(HasColorMap == 1 ? Depth : 0),
+	// XOrigin
+		0,
+	// YOrigin
+		0,
+	// ImageWidth
+		Width,
+	// ImageHeight
+		Height,
+	// BitsPerPixel
+		(unsigned char)(HasColorMap == 1 ? 8 : Depth),
+	// ImageDescriptor
+		(unsigned char)(ImageDataOrder | (Depth == 32 ? 0x28 : 0x20))
 	};
 #pragma pack(pop)
 
-	fwrite(&tgaheader, 1, 18, fd);
+	fwrite(&TGAHeader, 1, 18, OutFile);
 }
 
 inline std::string TitleCase(
@@ -189,7 +216,7 @@ inline std::string CleanDisplayName(
 	if (RemoveSpace) {
 		CleanName.erase(std::remove_if(CleanName.begin(), CleanName.end(), [](unsigned char x) { return std::isspace(x); }), CleanName.end());
 	}
-   
+
 	return CleanName;
 }
 
