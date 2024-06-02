@@ -10,7 +10,7 @@
 *************/
 #include "UWXtract.h"
 
-extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 3]);	// Util.cpp
+extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
 extern void StringReplace(std::string& InString, const std::string& OldText, const std::string& NewText);		// Util.cpp
 
 int TRXtract(
@@ -39,7 +39,7 @@ int TRXtract(
 	}
 
 // Get palette 0
-	char palette[256 * 3];
+	char palette[256 * 4];
 	GetPalette(UWPath, 0, palette);
 
 	_finddata_t find;
@@ -107,9 +107,9 @@ int TRXtract(
 			FILE* tga = fopen(tganame, "wb");
 
 		// Write header
-			TGAWriteHeader(tga, xyres, xyres, 1, 1);
+			TGAWriteHeader(tga, xyres, xyres);
 		// Write palette
-			fwrite(palette, 1, 256 * 3, tga);
+			fwrite(palette, 1, 256 * 4, tga);
 
 		// Write data
 			int datalen = xyres * xyres;
