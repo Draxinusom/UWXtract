@@ -9,7 +9,7 @@
 #include "UWXtract.h"
 
 extern void ImageDecode4BitRLE(FILE* fd, FILE* out, unsigned int bits, unsigned int datalen, unsigned char* auxpalidx);	// CRITXtract.cpp
-extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 3]);			// Util.cpp
+extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);			// Util.cpp
 
 void ImageDecode4BitUncompressed(
 	int datalen,
@@ -59,7 +59,7 @@ int GRXtract(
    char fname[256];
 
 // Get palette 0
-	char palette[4][256 * 3];
+	char palette[4][256 * 4];
 	GetPalette(UWPath, 0, palette[0]);
 // Also get 1-3, there's a few GR files that use them
 	GetPalette(UWPath, 1, palette[1]);
@@ -135,7 +135,7 @@ int GRXtract(
 					",,Invalid Offset,,\n",	// All other columns
 					basename,	// FileName
 					img			// Index
-				);				
+				);
 				continue;
 			}
 
@@ -570,9 +570,10 @@ int GRXtract(
 			FILE* tga = fopen(fname, "wb");
 
 		// Write header
-			TGAWriteHeader(tga, width, height, 1, 1);
+			TGAWriteHeader(tga, width, height);
+
 		// Write palette
-			fwrite(palette[BasePaletteID], 1, 256 * 3, tga);
+			fwrite(palette[BasePaletteID], 1, 256 * 4, tga);
 
 		// Write image data
 			switch (type) {
@@ -592,7 +593,7 @@ int GRXtract(
 				case 0xa:
 					ImageDecode4BitUncompressed(datalen, fd, tga, auxpalidx[auxpal]);
 					break;
-			// 4-bit rle
+			// 4-bit run-length
 				case 8:
 					ImageDecode4BitRLE(fd, tga, 4, width * height, auxpalidx[auxpal]);
 					break;
