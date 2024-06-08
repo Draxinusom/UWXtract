@@ -53,9 +53,8 @@ std::string ByteToBitArray(
 	return BitArray;
 }
 
-/*** Deprecated -- Going to leave in case ever have need for 24bit function
-// Returns the specified palette, reformatted for TGA export (BGR)
-void GetPalette(
+// Returns the specified palette, reformatted for TGA export excluding alpha channel (BGR)
+void GetPalette24(
 	const std::string UWPath,
 	const unsigned int PaletteIndex,
 	char PaletteBuffer[256 * 3]
@@ -82,10 +81,9 @@ void GetPalette(
 		PaletteBuffer[(c * 3) + 2] = RedTemp;
 	}
 }
-***/
 
 // Returns the specified palette, reformatted for TGA export including alpha channel (BGRA)
-void GetPalette(
+void GetPalette32(
 	const std::string UWPath,
 	const unsigned int PaletteIndex,
 	char PaletteBuffer[256 * 4]
