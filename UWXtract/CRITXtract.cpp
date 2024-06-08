@@ -13,7 +13,7 @@
 *************/
 #include "UWXtract.h"
 
-extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
+extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
 
 void ImageDecode4BitRLE(
 	FILE* fd,
@@ -320,7 +320,7 @@ void CRITXtractUW1(
 
 // Get palette 0 -- Auxillary palettes stored in critter page files and loaded later
 	char palette[256 * 4];
-	GetPalette(UWPath, 0, palette);
+	GetPalette32(UWPath, 0, palette);
 
 // Read in game strings
 	ua_gamestrings gs;
@@ -595,7 +595,7 @@ void CRITXtractUW2(
 
 // Get palette 0 -- Auxillary palettes stored in critter page files and loaded later
 	char palette[256 * 4];
-	GetPalette(UWPath, 0, palette);
+	GetPalette32(UWPath, 0, palette);
 
 // Read in game strings
 	ua_gamestrings gs;
