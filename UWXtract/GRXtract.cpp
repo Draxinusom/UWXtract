@@ -8,8 +8,8 @@
 *************/
 #include "UWXtract.h"
 
-extern void ImageDecode4BitRLE(FILE* fd, FILE* out, unsigned int bits, unsigned int datalen, unsigned char* auxpalidx);	// CRITXtract.cpp
-extern void GetPalette(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);			// Util.cpp
+extern void ImageDecode4BitRLE(FILE* fd, FILE* out, unsigned int bits, unsigned int datalen, unsigned char* auxpalidx);		// CRITXtract.cpp
+extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);			// Util.cpp
 
 void ImageDecode4BitUncompressed(
 	int datalen,
@@ -60,11 +60,11 @@ int GRXtract(
 
 // Get palette 0
 	char palette[4][256 * 4];
-	GetPalette(UWPath, 0, palette[0]);
+	GetPalette32(UWPath, 0, palette[0]);
 // Also get 1-3, there's a few GR files that use them
-	GetPalette(UWPath, 1, palette[1]);
-	GetPalette(UWPath, 2, palette[2]);
-	GetPalette(UWPath, 3, palette[3]);
+	GetPalette32(UWPath, 1, palette[1]);
+	GetPalette32(UWPath, 2, palette[2]);
+	GetPalette32(UWPath, 3, palette[3]);
 
 // Get all AuxPals
 	unsigned char auxpalidx[32][16];
