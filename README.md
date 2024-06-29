@@ -48,13 +48,14 @@ When the * option is used (with or without the output path), sub folders are cre
 |GR|Objects/UI Elements/Etc|DATA\\*.GR|DATA\\*.GR|
 |TR|Floor/Wall textures|DATA\\*.TR|DATA\\*.TR|
 
-Images are extracted as TGA files.  I've included two batch files (you'll likely need to adjust the paths) to convert the files to PNG:
+Images are extracted as TGA files.  I've included three batch files (you'll likely need to adjust the paths) to convert the files to PNG:
 - TGAtoIndexPNG.bat:  Convert to PNG keeping the image's color map exactly the same.  Requires [FFMPEG](https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z).
 - TGAtoRGBPNG.bat:  Convert to a standard 24-bit (no alpha) RGB PNG.  Requires [ImageMagick](https://imagemagick.org/script/download.php#windows).
+- TGAtoRGBAPNG.bat:  Convert to a standard 32-bit (with alpha) RGB PNG.  Requires [ImageMagick](https://imagemagick.org/script/download.php#windows).
 
-If you don't know the difference or why you would prefer one over the other, use TGAtoRGBPNG.bat.
+If you don't know the difference or why you would prefer one over the other, use TGAtoRGBAPNG.bat.
 
-Both can be run by just dragging and dropping the folder containing the TGA images on it.
+All three can be run by just dragging and dropping the folder containing the TGA images on it.
 
 Note:  
 Do **_not_** use ImageMagick if you want to keep the converted files as indexed.  ImageMagick **_will_** alter the color map.
