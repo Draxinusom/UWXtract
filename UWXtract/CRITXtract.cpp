@@ -13,7 +13,7 @@
 *************/
 #include "UWXtract.h"
 
-extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
+extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4], bool IncludePartialTransparency);	// Util.cpp
 
 void ImageDecode4BitRLE(
 	FILE* fd,
@@ -195,7 +195,7 @@ std::string NPCNameFix(
 			case 014: NPCName = IsDisplayName ? "The Slasher of Veils" : "SlasherOfVeils"; break;
 			case 015:
 				switch (auxpal) {
-					case 0:	NPCName = IsDisplayName ? "Ghost (Red)" : "Ghost_R"; break;
+					case 0:	NPCName = IsDisplayName ? "Ghost" : "Ghost"; break;
 					case 1:	NPCName = IsDisplayName ? "Ghost (White)" : "Ghost_W"; break;
 					case 2:	NPCName = IsDisplayName ? "Ghost (Blue)" : "Ghost_B"; break;
 				}
@@ -257,7 +257,6 @@ std::string NPCNameFix(
 				switch(auxpal) {
 					case 0:	NPCName = "Lord"; break;
 					case 1:	NPCName = IsDisplayName ? "Liche Wizard" : "LicheWizard"; break;
-
 				}
 				break;
 			case 026:
@@ -320,7 +319,7 @@ void CRITXtractUW1(
 
 // Get palette 0 -- Auxillary palettes stored in critter page files and loaded later
 	char palette[256 * 4];
-	GetPalette32(UWPath, 0, palette);
+	GetPalette32(UWPath, 0, palette, true);
 
 // Read in game strings
 	ua_gamestrings gs;
@@ -595,7 +594,7 @@ void CRITXtractUW2(
 
 // Get palette 0 -- Auxillary palettes stored in critter page files and loaded later
 	char palette[256 * 4];
-	GetPalette32(UWPath, 0, palette);
+	GetPalette32(UWPath, 0, palette, true);
 
 // Read in game strings
 	ua_gamestrings gs;
