@@ -8,7 +8,7 @@
 #include "UWXtract.h"
 
 extern std::string ByteToBitArray(unsigned char ByteIn);	// Util.cpp
-extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);	// Util.cpp
+extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4], bool IncludePartialTransparency);	// Util.cpp
 
 int SYSXtract(
 	bool IsUW2,
@@ -29,7 +29,7 @@ int SYSXtract(
 
 // Get palette 0 -- A bit variable where they're used with some fonts so not going to try matching it to the correct one as there may be multiple, just picking the most common
 	char Palette[256 * 4];
-	GetPalette32(UWPath, 0, Palette);
+	GetPalette32(UWPath, 0, Palette, false);
 
 // Just using white (or closest to) for the character's color -- Note: white is a different index between games in palette 0
 	char PalIndex = !IsUW2 ? 0x0B : 0x02;
