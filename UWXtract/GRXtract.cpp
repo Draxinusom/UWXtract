@@ -8,8 +8,8 @@
 *************/
 #include "UWXtract.h"
 
-extern void ImageDecode4BitRLE(FILE* fd, FILE* out, unsigned int bits, unsigned int datalen, unsigned char* auxpalidx);		// CRITXtract.cpp
-extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4]);			// Util.cpp
+extern void ImageDecode4BitRLE(FILE* fd, FILE* out, unsigned int bits, unsigned int datalen, unsigned char* auxpalidx);								// CRITXtract.cpp
+extern void GetPalette32(const std::string UWPath, const unsigned int PaletteIndex, char PaletteBuffer[256 * 4], bool IncludePartialTransparency);	// Util.cpp
 
 void ImageDecode4BitUncompressed(
 	int datalen,
@@ -59,12 +59,22 @@ int GRXtract(
    char fname[256];
 
 // Get palette 0
-	char palette[4][256 * 4];
-	GetPalette32(UWPath, 0, palette[0]);
+	char palette[5][256 * 4];
+	GetPalette32(UWPath, 0, palette[0], false);
 // Also get 1-3, there's a few GR files that use them
-	GetPalette32(UWPath, 1, palette[1]);
-	GetPalette32(UWPath, 2, palette[2]);
-	GetPalette32(UWPath, 3, palette[3]);
+	GetPalette32(UWPath, 1, palette[1], false);
+	GetPalette32(UWPath, 2, palette[2], false);
+	GetPalette32(UWPath, 3, palette[3], false);
+/***
+	Get palette 0 with partial transparency applied
+	Used by ANIMO & OBJECTS
+
+	Note:
+	I'm guessing it may also technically apply to anything that shows in the 3D game world (i.e. non-UI images)
+	meaning DOORS/TMFLAT/TMOBJ should have this applied as well
+	However, none of the images in those files use any of the psuedo transparency colors so those are excluded
+***/
+	GetPalette32(UWPath, 0, palette[4], true);
 
 // Get all AuxPals
 	unsigned char auxpalidx[32][16];
@@ -98,16 +108,15 @@ int GRXtract(
 		sprintf(fname, "%s\\DATA\\%s.GR", UWPath.c_str(), basename);
 		FILE* fd = fopen(fname, "rb");
 
-	// Flag if GENHEAD.GR & UW2 - it's obviously a leftover file and UW2's palette is wrong
-		bool SkipFile = false;
+	// Skip if GENHEAD.GR & UW2 - it's obviously a leftover file and UW2's palette is wrong
 		if (IsUW2 && _stricmp("genhead", basename) == 0) {
-			SkipFile = true;
 		// Still log it so reason it's missing is known
 			fprintf(log,
 				"%s,"	// FileName
 				",,,Leftover file from UW1,,Skipped\n",	// All other columns
 				basename	// FileName
 			);
+			continue;
 		}
 
 	// Create file output folder
@@ -125,7 +134,7 @@ int GRXtract(
 		unsigned int* offsets = new unsigned int[entries];
 		fread(offsets, sizeof(unsigned int), entries, fd);
 
-		for (int img = 0; img < entries && !SkipFile; img++) {
+		for (int img = 0; img < entries; img++) {
 		// Skip if invalid
 			if (offsets[img] >= flen) {
 				fprintf(
@@ -209,6 +218,11 @@ int GRXtract(
 				}
 			}
 
+		// Swap in palette 0 with partial transparency applied for ANIMO & OBJECTS
+			if (_stricmp("animo", basename) == 0 || _stricmp("objects", basename) == 0) {
+				BasePaletteID = 4;
+			}
+
 		// Set image type name for log and get auxillary palette (where applicable)
 			const char* TypeName;
 			switch (type) {
@@ -240,7 +254,7 @@ int GRXtract(
 				continue;
 			}
 
-		// Set lenth of image data -- Hardcode for PANELS.GR
+		// Set length of image data -- Hardcode for PANELS.GR
 			unsigned short datalen;
 			if (_stricmp("panels", basename) == 0) {
 				datalen = width * height;
@@ -392,9 +406,28 @@ int GRXtract(
 			else if (_stricmp("objects", basename) == 0) {
 				ImageDescription = CleanDisplayName(gs.get_string(4, img), true, false);
 				FileNameDescription = "_" + CleanDisplayName(gs.get_string(4, img), true, true);
+				
 				if (ImageDescription == "") {
-					ImageDescription = "Unknown";
-					FileNameDescription = "Unknown";
+					if (!IsUW2 && (img == 79 || img == 125 || img == 126)) {
+						ImageDescription = "Ethereal Void Creature";
+						FileNameDescription = "_EVCreature";
+					}
+					else if (!IsUW2 && img == 123) {
+						ImageDescription = "Tyball";
+						FileNameDescription = "_Tyball";
+					}
+					else if (!IsUW2 && img == 124) {
+						ImageDescription = "The Slasher of Veils";
+						FileNameDescription = "_SlasherOfVeils";
+					}
+					else if (IsUW2 && (img == 124 || img == 125)) {
+						ImageDescription = "Ethereal Void Creature";
+						FileNameDescription = "_EVCreature";
+					}
+					else {
+						ImageDescription = "Unknown";
+						FileNameDescription = "_Unknown";
+					}
 				}
 			}
 		// SPELLS.GR
@@ -403,7 +436,7 @@ int GRXtract(
 				FileNameDescription = "_" + CleanDisplayName(gs.get_string(6, 384 + img), true, true);
 				if (ImageDescription == "") {
 					ImageDescription = "Unknown";
-					FileNameDescription = "Unknown";
+					FileNameDescription = "_Unknown";
 				}
 			}
 		// WEAPONS.GR -- UW1
@@ -561,7 +594,7 @@ int GRXtract(
 				width,								// Width
 				height,								// Height
 				TypeName,							// Type
-				type == 4 ? BasePaletteID : auxpal,	// Palette
+				type == 4 ? (BasePaletteID == 4 ? 0 : BasePaletteID) : auxpal,	// Palette -- Note:  Log partial transparent palette as 0 (pretty sure all of them use an AuxPal so probably not necessary)
 				ImageDescription.c_str()			// Description
 			);
 
