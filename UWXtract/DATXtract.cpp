@@ -1064,35 +1064,142 @@ int DATXtract(
 
 // SOUNDS.DAT
 	{
+	/***
+		Note:  Bytes x03/04
+			I'm honestly not sure internally how it is handling bytes x03/4.  They definitely control how long before a note off message is sent
+			after a note is played but if that is tracked in seconds/milliseconds, full quarter notes/partial notes (ticks), etc, I have no idea.
+			It's worth noting that (on the MT32) until that note off message is sent, while the note will not actually play, it will also not release
+			the partial (note) on the channel it played on (each channel has 4 partials/notes it can play) which will eventually cause you to run out
+			of available channels for sound effects (UW1/2 appear to reserve a partial on 4 channels for SEs (the remaining 28 for music) and will
+			not play any SEs if all 4 are locked up).
+
+			UW1/2 doesn't appear to set a tempo anywhere and is defaulting to 500 ticks per quarter which equates to 1000 microseconds per tick
+			at 120 bpm or 1 millisecond, making each quarter note .5 seconds long.
+
+			From testing byte x03 _appears_ to equal the number of full seconds before the note off message is sent, making a value of 01 equate to
+			2 quarter notes or 1000 ticks.  Byte x04 appears to be milliseconds (val * (1000/256)), with the two values that are seen (x80/x40)
+			equating to 500 and 250 milliseconds, or 1/0.5 quarter notes or 500/250 ticks.
+
+			I'll note that there is a fair amount of variability, with any of these values tending to be somewhere between 16-72 milliseconds/ticks
+			less than the values I'm guessing them to be in the midi logs.  Not sure if latency and, if so, if that's a midi, DosBox, or UW thing.
+			This variance is not from sound to sound (though they _will_ be different), but the same sound played once then again will have some
+			small difference in the number of ticks before the note off is sent.  Again, no idea, but assuming some latency being adjusted for.
+
+			While time could be used for the returned value (i.e. 0.5 seconds) I thought that would be more likely to be misread as how long the note
+			should play for, which it is not, so opted for ticks to avoid confusion or at least confuse in a different direction.  Also because I spent
+			a stupid amount of time researching midi crap to try to figure out what was going on and I may as well toss some of that in.
+
+			Additionally, while looking into this I learned that timbre is not pronounced like timber but more like tamborine (taembor).
+			An interesting fact that reconfirms for us all that those involved in music are incredibly pretentious.
+			Also, my work here does not qualify as being involved in music, I'm better than that... wait?
+	***/
 		sprintf(TempPath, "%s\\SOUND\\SOUNDS.DAT", UWPath.c_str());
 		FILE* fd = fopen(TempPath, "rb");
+
+	// Read in MT32 sysex file to extract sound names (only partial in UW2)
+		sprintf(TempPath, "%s\\SOUND\\UW.MT", UWPath.c_str());
+		FILE* SysEx = fopen(TempPath, "rb");
+
+	// Get sound effect names
+		std::vector<std::string> SoundEffect(28);
+		fseek(SysEx, 388, SEEK_SET);
+
+		for (int i = 0; i < 28; i++) {
+			char TimbreName[10];
+			fread(&TimbreName, 10, 1, SysEx);
+
+		// Stupid name trim fix
+			std::string CleanName = TimbreName;
+			CleanName = CleanName.substr(0, 10);
+			SoundEffect[i] = CleanName.substr(0, 10 - (10 - CleanName.find_last_not_of(" ")) +1);
+
+		// Jump to next effect
+			fseek(SysEx, 238, SEEK_CUR);
+		}
+
+		fclose(SysEx);
+
+	// Get record count
+		int RecordCount = fgetc(fd);
 
 	// Create CSV export file and header
 		sprintf(TempPath, "%s\\SOUNDS.csv", OutPath.c_str());
 		FILE* out = fopen(TempPath, "w");
-		fprintf(out, "Index"); // Finish building header after getting byte count
 
-		int RecordCount = fgetc(fd);
+	// File format differs between UW1/2 and easier to split
+		if (!IsUW2) {
+			fprintf(out, "EffectID,TimbreID,TimbreName,Note,Velocity,Ticks\n");	// TimbreID might not be best name as UW2 has effects without a timbre in its file (I assume those are for either AdLib or SoundBlaster) but not sure what else to call it
 
-	// Record size varies between games, should be 5 bytes in UW1 and 8 in UW2 but check to be sure
-		fseek(fd, 0, SEEK_END);
-		int RecordByte = ftell(fd) / RecordCount;
-		fseek(fd, 1, SEEK_SET);
+			for (int i = 0; i < RecordCount; i++) {
+				unsigned char SoundData[5];
+				fread(SoundData, 1, 5, fd);
 
-	// Add header byte columns
-		for (int h = 0; h < RecordByte; h++) {
-			fprintf(out, ",x%02X", h);
-		}
-		fprintf(out, "\n");
-
-	// Loop and export each record's bytes
-		for (int r = 0; r < RecordCount; r++) {
-			fprintf(out, "%u", r);	// Add record index
-			for (int b = 0; b < RecordByte; b++) {
-				fprintf(out, ",%02X", fgetc(fd));	// Add each record byte
+			// Export to CSV
+				fprintf(
+					out,
+					"%u,"		// EffectID
+					"%u,"		// TimbreID
+					"%s,"		// TimbreName
+					"%u,"		// Note
+					"%u,"		// Velocity
+					"%1.f\n",	// Ticks
+					i,										// EffectID
+					SoundData[0],							// TimbreID
+					SoundEffect[SoundData[0]].c_str(),		// TimbreName
+					SoundData[1],							// Note
+					SoundData[2],							// Velocity
+					(SoundData[3] * 1000) + (SoundData[4] * (static_cast<float>(1000) / 256))	// Ticks
+				);
 			}
-			fprintf(out, "\n");	// Then close record
 		}
+		else {
+			fprintf(out, "EffectID,TimbreID,TimbreName,Note,Velocity,Ticks,HasVOC,x06,x07\n");	// TimbreID might not be best name as UW2 has effects without a timbre in its file (I assume those are for either AdLib or SoundBlaster) but not sure what else to call it
+
+			for (int i = 0; i < RecordCount; i++) {
+				unsigned char SoundData[8];
+				fread(SoundData, 1, 8, fd);
+
+			// UW2 has additional effects that are not includedfdhjsalsfda
+				std::string TimbreName = "";
+				if (SoundData[0] < 28) {
+					TimbreName = SoundEffect[SoundData[0]];
+				}
+
+			// Export to CSV
+				fprintf(
+					out,
+					"%u,"		// EffectID
+					"%u,"		// TimbreID
+					"%s,"		// TimbreName
+					"%u,"		// Note
+					"%u,"		// Velocity
+					"%1.f,"		// Ticks
+					"%u,"		// HasVOC
+					"%02X,"		// x06
+					"%02X\n",	// x07
+					i,											// EffectID
+					SoundData[0],								// TimbreID
+					TimbreName.c_str(),							// TimbreName
+					SoundData[1],								// Note
+					SoundData[2],								// Velocity
+					(SoundData[3] * 1000) + (SoundData[4] * (static_cast<float>(1000) / 256)),	// Ticks
+					SoundData[5],								// HasVOC
+					SoundData[6],								// x06
+					SoundData[7]								// x07
+				);
+			}
+		}
+
+		/***
+			Note: Bytes x06/07
+				Mixing up the values or throwing in ones that are far out of range (80, FF, etc) gives no noticeable affect for any sound card type.
+				There is clearly a logic to them as values are generally grouped up with similar sounds or with the same Timbre.
+
+				Maybe one of them works as a grouping to do some sort of prioritization to drop sounds if too much is going on at the same time?
+
+				No idea
+		***/
+
 		fclose(fd);
 		fclose(out);
 	}
