@@ -85,6 +85,7 @@
     <ClCompile Include="TRXtract.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="MDLXtract.cpp" />
+    <ClCompile Include="VOCXtract.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UWXtract.h" />
