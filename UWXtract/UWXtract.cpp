@@ -33,6 +33,7 @@ extern int SAVXtract(bool IsUW2, std::string ExportTarget, const std::string UWP
 extern int SCDXtract(std::string ExportTarget, const std::string UWPath, const std::string OutPath);
 extern int SYSXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int TRXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
+extern int VOCXtract(const std::string UWPath, const std::string OutPath);
 
 // Test functions
 extern int RAWXtractUW1(const std::string UWPath, const std::string OutPath);
@@ -63,6 +64,7 @@ int main(
 			"  SCD      SCD archive (UW2 only)\n"
 			"  SAV      Save game (SAVE#\\PLAYER.DAT)\n"
 			"  TR       TR bitmap images (Floor/Wall textures)\n"
+			"  VOC      Cutscene and sound effects\n"
 			"  *        All types\n"
 			"\n"
 			"UWXtract and supporting files may be placed in and run from the base game folder (where UW.exe/UW2.exe is located)\n"
@@ -147,6 +149,7 @@ int main(
 			SCDXtract("*", UWPath, OutPath + "\\SCD");
 		}
 		TRXtract(IsUW2, UWPath, OutPath + "\\TR");
+		VOCXtract(UWPath, OutPath + "\\VOC");
 	}
 // BYT
 	else if (strcmp("byt", argv[1]) == 0) {
@@ -214,6 +217,10 @@ int main(
 // TR
 	else if (_stricmp("tr", argv[1]) == 0) {
 		return TRXtract(IsUW2, UWPath, OutPath);
+	}
+// VOC
+	else if (_stricmp("voc", argv[1]) == 0) {
+		return VOCXtract(UWPath, OutPath);
 	}
 // Save test - not listed
 	else if (!IsUW2 && _stricmp("raw", argv[1]) == 0) {
