@@ -93,7 +93,7 @@ Additionally, I've included a PowerShell script that can be used to create an im
 |DATA\OBJECTS.DAT|Object class specific properties - contains multiple datasets|Both|
 |DATA\SHADES.DAT|Contains parameters around light levels - distance to start darkening the screen|Both|
 |DATA\SKILLS.DAT|Character creation class starting attributes and available skills|Both|
-|DATA\SOUNDS.DAT|Guessed to be midi commands but values don't align with any standards commands I can find|Both|
+|DATA\SOUNDS.DAT|Midi sound effect definitions|Both|
 |DATA\TERRAIN.DAT|Contains the type of terrain for each - i.e. lava/normal/water/etc.|Both|
 |DATA\WEAP.DAT|Offsets for placing the attack frames from WEAP.GR on the screen for each type|UW2|
 |DATA\WEAPONS.DAT|Offsets for placing the attack frames from WEAPONS.GR on the screen for each type|UW1|
@@ -120,6 +120,11 @@ If none is specified, LEV & SCD will behave as if you specified the data version
 This data type is extracted from a hardcoded table in the UW/UW2 executable.  The MDL extract which is also pulling data from those has a list of different offsets (position where the data exists in the file) to try as its position in the executable can change based on the file version.  I suspect, but don't know for certain, that will be the case for the magic data as well.
 
 Like everything else, this was written using the GOG versions of UW1/UW2 so only the offset for that version is known/used.  I don't believe it should fail (though it might) if it is in a different place on the version you run it on, the data should just be obviously wrong (i.e. no or incorrect mantras).  If that happens, create an issue and we'll work out a way to send me the executable (not sure we can or it'd be a good idea to attach it since the game is still being sold) so I can investigate and get its offset added.
+
+### VOC
+These are the audio/voice files used in some cutscenes as well as some sound effects in UW2.
+
+I'll note the audio is all mono 8bit PCM running at 12,048hz in UW1 and 11,111hz in UW2 so they don't sound great.  <sub>For now.</sub>
 
 ## Build
 This project was originally created as a modified version of the "hacking" tools included in [UnderworldAdventures](https://github.com/vividos/UnderworldAdventures) (UA) and still relies on code from that project.  While I intend to work through and extract out just the components this project requires to make it standalone, as of now, you will also need the source for that.
@@ -149,4 +154,5 @@ It's pretty close though.
 ## Credits
 This project began as a simple wrapper for the "hacking" tools created by the [Underworld Adventures](https://vividos.github.io/UnderworldAdventures/) Team.  While much of the original code from them has been heavily altered or completely replaced, quite a bit still remains (string loading/decoding and UW2 decompression are essentially untouched) and all credit goes to them for that.  Even the parts that were rewritten/replaced were vital as that's what I used to learn how to write (a little bit of) ~~C++~~ C.  As importantly, I must thank them for the work they did in documenting the internals of UW1/UW2, without which none of this would have been possible.  I have spent a ridiculous amount of time reading their [uw-formats.txt](https://github.com/vividos/UnderworldAdventures/blob/main/uwadv/docs/uw-formats.txt) document.
 
-Additionally, much credit must be given to hankmorgan and his [reverse engineering documentation](https://github.com/hankmorgan/UWReverseEngineering) as part of his work on [UnderworldExporter](https://github.com/hankmorgan/UnderworldExporter).  His work has been invaluable in flushing out much of the details in the data files, saves, and level archives (particularly for UW2).  UnderworldExporter is an active project (at least as of March 2024) and is definitely worth keeping an eye on if you're interested in Ultima Underworld.  Despite it not actually exporting anything :)
+Additionally, much credit must be given to hankmorgan and his [reverse engineering documentation](https://github.com/hankmorgan/UWReverseEngineering) as part of his work on ~~[UnderworldExporter](https://github.com/hankmorgan/UnderworldExporter)~~[UnderworldGodot](https://github.com/hankmorgan/UnderworldGodot).  His work has been invaluable in flushing out much of the details in the data files, saves, and level archives (particularly for UW2).  UnderworldGodot is an active project (at least as of September 2024) and is definitely worth keeping an eye on if you're interested in Ultima Underworld.
+
