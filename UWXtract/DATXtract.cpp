@@ -24,6 +24,7 @@
 
 int DATXtract(
 	const bool IsUW2,
+	const bool IsPPC,
 	const std::string UWPath,
 	const std::string OutPath
 ) {
@@ -481,11 +482,13 @@ int DATXtract(
 				const char* Remains;
 				switch (buffer[8] >> 5) {
 					case  0:	Remains = "Nothing"; break;
+					case  1:	Remains = "Dead Rotworm"; break;
 					case  2:	Remains = "Rubble"; break;
 					case  3:	Remains = "Pile of Wood Chips"; break;
 					case  4:	Remains = "Pile of Bones"; break;
 					case  5:	Remains = "Blood Stain (Green)"; break;
 					case  6:	Remains = "Blood Stain (Red)"; break;
+					case  7:	Remains = "Blood Stain (Alt)"; break;	// 2nd red type in UW1 - image is identical
 					default:	Remains = "Unknown"; break;
 				}
 
@@ -511,12 +514,12 @@ int DATXtract(
 
 			// Get loot
 				std::string Item1Name = "";
-				if (buffer[32] > 0x00 && buffer[32] < 0xFF) {
-					Item1Name = CleanDisplayName(gs.get_string(4, ((buffer[32] >> 1) & 0x0F) + ((buffer[32] >> 5))).c_str(), true, false);
+				if (buffer[32] > 0x00 && buffer[33] < 0xFF) {	// Not doing != 0x00 here because some have FF which is also invalid
+					Item1Name = CleanDisplayName(gs.get_string(4, (buffer[32] >> 1)).c_str(), true, false);
 				}
 				std::string Item2Name = "";
 				if (buffer[33] > 0x00 && buffer[33] < 0xFF) {
-					Item2Name = CleanDisplayName(gs.get_string(4, ((buffer[33] >> 1) & 0x0F) + ((buffer[33] >> 5))).c_str(), true, false);
+					Item2Name = CleanDisplayName(gs.get_string(4, (buffer[33] >> 1)).c_str(), true, false);
 				}
 				std::string Item3Name = "";
 				if ((buffer[34] | (buffer[35] << 8)) != 0x00) {
@@ -527,7 +530,7 @@ int DATXtract(
 					Item4Name = CleanDisplayName(gs.get_string(4, ((buffer[36] | (buffer[37] << 8)) >> 4)).c_str(), true, false);
 				}
 				std::string FoodName = "";
-				if (buffer[39] > 0x00 && buffer[32] < 0xFF) {
+				if (buffer[39] > 0x00 && buffer[39] < 0xFF) {
 					FoodName = CleanDisplayName(gs.get_string(4, (buffer[39] >> 4) + 0xB0).c_str(), true, false);
 				}
 
@@ -821,7 +824,7 @@ int DATXtract(
 					OBJECT_FOOD,
 					"%u,"	// ItemID
 					"%s,"	// Name
-					"%u\n",	// Nutrition
+					"%d\n",	// Nutrition
 					i,			// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
 					fgetc(fd)	// Nutrition
@@ -1062,8 +1065,8 @@ int DATXtract(
 		fclose(fd);
 	}
 
-// SOUNDS.DAT
-	{
+// SOUNDS.DAT - doesn't exist in PocketPC version
+	if (!IsPPC) {
 	/***
 		Note:  Bytes x03/04
 			I'm honestly not sure internally how it is handling bytes x03/4.  They definitely control how long before a note off message is sent
