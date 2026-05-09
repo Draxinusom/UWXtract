@@ -30,6 +30,11 @@ static std::map<std::string, unsigned int> BYTFilePaletteMap = {
 	{"pres2.byt", 5},	// Startup "A BLUE SKY PRODUCTIONS Game" screen
 	{"win1.byt", 7},	// Victory "Congratulations" message
 	{"win2.byt", 7},	// Victory character stats/info screen background
+// PPC
+	{"copyright.byt", 2},	// Opening screen background
+	{"credit1.byt", 2},	// Opening screen background
+	{"credit2.byt", 2},	// Opening screen background
+	{"credit3.byt", 2},	// Opening screen background
 // UW2 LBACK00X.BYT -- Palette comes from the cutscene file
 	{"lback000.byt", 0},	// CS000.N02/4	-- Opening -- Left Britain "The Festival of Rebuilding" scene -- Combined with LBACK001 and panned right to left
 	{"lback001.byt", 0},	// CS000.N02/4	-- Opening -- Right Britain "The Festival of Rebuilding" scene -- Combined with LBACK000 and panned right to left
@@ -67,6 +72,11 @@ static std::map<std::string, std::string> BYTFileDescription = {
 	{"pres2.byt", "Startup \"A BLUE SKY PRODUCTIONS Game\" screen"},
 	{"win1.byt", "Victory \"Congratulations\" message"},
 	{"win2.byt", "Victory character stats/info background"},
+// PPC
+	{"copyright.byt", "PocketPC copyright screen"},
+	{"credit1.byt", "PocketPC credit screen 1"},
+	{"credit2.byt", "PocketPC credit screen 2"},
+	{"credit3.byt", "PocketPC credit screen 3"},
 // UW2 LBACK00X.BYT
 	{"lback000.byt", "Opening - Britain \"The Festival of Rebuilding\" scene (Combined with LBACK001 and panned right to left)"},
 	{"lback001.byt", "Opening - Britain \"The Festival of Rebuilding\" scene (Combined with LBACK000 and panned right to left)"},
@@ -221,6 +231,7 @@ void SaveImage(
 
 int BYTXtract(
 	const bool IsUW2,
+	const bool IsPPC,
 	const std::string UWPath,
 	const std::string OutPath
 ) {
