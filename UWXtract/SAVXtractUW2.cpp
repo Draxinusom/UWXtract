@@ -1682,6 +1682,7 @@ int ProcessUW2SAV(
 					case 1: IDed = "No"; break;			// Don't think it should get to this state, I had to manually mess with it to set it and it treats as unidentified
 					case 2: IDed = "Partial"; break;	// Indicates you know the item is "magical"
 					case 3: IDed = "Yes"; break;
+					default: IDed = "Unknown"; break;
 				}
 
 			// Append an * to indicate if ID has been attempted -- Probably need to have _some_ actual documentation as no one will know what that means without looking at the code, which they should, it's pretty great
