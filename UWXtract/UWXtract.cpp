@@ -19,13 +19,13 @@
 #include <string>
 
 // Extract functions
-extern int BYTXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
+extern int BYTXtract(bool IsUW2, bool IsPPC, const std::string UWPath, const std::string OutPath);
 //extern int CNVXtract();		// Dropping this or replacing
 extern int CRITXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
-extern int DATXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
+extern int DATXtract(bool IsUW2, bool IsPPC, const std::string UWPath, const std::string OutPath);
 extern int GRXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int LEVXtract(bool IsUW2, std::string ExportTarget, const std::string UWPath, const std::string OutPath);
-extern int MAGXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
+extern int MAGXtract(bool IsUW2, bool IsPPC, const std::string UWPath, const std::string OutPath);
 extern int MDLXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int PAKXtract(bool IsUW2, const std::string UWPath, const std::string OutPath);
 extern int PALXtract(bool IsUW2, const std::string UWPath, const std::string OutPath, bool IsGIMP);
@@ -124,23 +124,29 @@ int main(
 // Identify game type - assuming UW1 if UW2.exe not found
 	bool IsUW2 = (std::filesystem::exists(UWPath + "\\UW2.exe"));
 
-// Break if neither UW/UW2 executable found
-	if (!IsUW2 && !(std::filesystem::exists(UWPath + "\\UW.exe"))) {
+// Should probably change IsUW2 to a type value instead of second flag but that'll take a bit to hit everything so...
+	bool IsPPC = (std::filesystem::exists(UWPath + "\\UU.exe"));
+
+// Break if neither UW/UW2/PPC executable found
+	if (!IsUW2 && !IsPPC && !(std::filesystem::exists(UWPath + "\\UW.exe"))) {
 		printf("Ultima Underworld not found.\nSpecify game path (Where UW.exe/UW2.exe is located) or place executable in base game folder and run from there.");
 		return -1;
 	}
 
 // Call extract function
 	if (strcmp("*", argv[1]) == 0) {
-		BYTXtract(IsUW2, UWPath, OutPath + "\\BYT");
+		BYTXtract(IsUW2, IsPPC, UWPath, OutPath + "\\BYT");
 		//CNVXtract();
 		CRITXtract(IsUW2, UWPath, OutPath + "\\CRIT");
-		DATXtract(IsUW2, UWPath, OutPath + "\\DAT");
+		DATXtract(IsUW2, IsPPC, UWPath, OutPath + "\\DAT");
 		SYSXtract(IsUW2, UWPath, OutPath + "\\FONT");
 		GRXtract(IsUW2, UWPath, OutPath + "\\GR");
 		LEVXtract(IsUW2, "*", UWPath, OutPath + "\\LEV");
-		MAGXtract(IsUW2, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
-		MDLXtract(IsUW2, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
+		MAGXtract(IsUW2, IsPPC, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
+	// MDL not applicable to PPC version - Separate files in different formats
+		if (!IsPPC) {
+			MDLXtract(IsUW2, UWPath, OutPath);	// Single text file export, so don't bother creating sub folder
+		}
 		PAKXtract(IsUW2, UWPath, OutPath + "\\PAK");
 		PALXtract(IsUW2, UWPath, OutPath + "\\PAL", false);
 		SAVXtract(IsUW2, "*", UWPath, OutPath + "\\SAV");
@@ -149,23 +155,26 @@ int main(
 			SCDXtract("*", UWPath, OutPath + "\\SCD");
 		}
 		TRXtract(IsUW2, UWPath, OutPath + "\\TR");
-		VOCXtract(UWPath, OutPath + "\\VOC");
+	// VOC not applicable to PPC version
+		if (!IsPPC) {
+			VOCXtract(UWPath, OutPath + "\\VOC");
+		}
 	}
 // BYT
-	else if (strcmp("byt", argv[1]) == 0) {
-		return BYTXtract(IsUW2, UWPath, OutPath);
+	else if (_stricmp("byt", argv[1]) == 0) {
+		return BYTXtract(IsUW2, IsPPC, UWPath, OutPath);
 	}
 //// CNV
 	//else if (strcmp("cnv", argv[1]) == 0) {
 	//	return CNVXtract();
 	//}
 // CRIT
-	else if (strcmp("crit", argv[1]) == 0) {
+	else if (_stricmp("crit", argv[1]) == 0) {
 		return CRITXtract(IsUW2, UWPath, OutPath);
 	}
 // DAT
 	else if (_stricmp("dat", argv[1]) == 0) {
-		return DATXtract(IsUW2, UWPath, OutPath);
+		return DATXtract(IsUW2, IsPPC, UWPath, OutPath);
 	}
 // FONT
 	else if (_stricmp("font", argv[1]) == 0 || _stricmp("sys", argv[1]) == 0) {
@@ -181,7 +190,7 @@ int main(
 	}
 // MAG
 	else if (_stricmp("mag", argv[1]) == 0) {
-		return MAGXtract(IsUW2, UWPath, OutPath);
+		return MAGXtract(IsUW2, IsPPC, UWPath, OutPath);
 	}
 
 // MDL
