@@ -44,6 +44,7 @@ static std::map<unsigned int, std::string> RuneStoneMap = {
 
 int MAGXtract(
 	const bool IsUW2,
+	const bool IsPPC,
 	const std::string UWPath,
 	const std::string OutPath
 ) {
@@ -59,10 +60,10 @@ int MAGXtract(
 // Create CSV export file and header
 	sprintf(TempPath, "%s\\MAG.csv", OutPath.c_str());
 	FILE* MagOut = fopen(TempPath, "w");
-	fprintf(MagOut, "SpellID,Circle,SpellName,Rune1,Rune2,Rune3,Class,SubClass,TargetType,b31,b29\n");
+	fprintf(MagOut, "SpellID,Circle,SpellName,Rune1,Rune2,Rune3,Class,SubClass,TargetType,AreaOfEffect,Duration\n");
 
 // Magic table is embedded in executable
-	sprintf(TempPath, "%s\\UW%s.EXE", UWPath.c_str(), !IsUW2 ? "" : "2");
+	sprintf(TempPath, "%s\\%s.EXE", UWPath.c_str(), IsPPC ? "UU" : !IsUW2 ? "UW" : "UW2");
 	FILE* UWEXE = fopen(TempPath, "rb");
 
 /***
@@ -71,6 +72,20 @@ int MAGXtract(
 ***/
 	unsigned int RecordCount = !IsUW2 ? 0x35 : 0x45;
 	unsigned int MTableOffset = !IsUW2 ? 0x059EF0 : 0x066490;
+
+// 2 PPC variants so check value at one and see if table, otherwise assume other type (sorta lazy but can't believe I'm making this thing work for that anyways)
+	if (IsPPC) {
+		fseek(UWEXE, 0x075530, SEEK_SET);
+		unsigned char PPCCheck[4];
+		fread(PPCCheck, 1, 4, UWEXE);
+		if (PPCCheck[0] == 0x00 && PPCCheck[1] == 0x78 && PPCCheck[2] == 0x21 && PPCCheck[3] == 0x83) {
+			MTableOffset = 0x075530;
+		}
+		else {
+			MTableOffset = 0x0878B8;
+		}
+	}
+
 	fseek(UWEXE, MTableOffset, SEEK_SET);
 
 	for (unsigned int s = 0; s < RecordCount; s++) {
@@ -108,18 +123,50 @@ int MAGXtract(
 
 	// TargetType -- Whether spell fires immediately or you need to target/aim the spell
 		std::string TargetType = "";
-		if (((SpellVal >> 1) & 0x01) == 0x01) {
-			TargetType = "NonCombat";	// Uses CURSORS.GR 10
+		switch (SpellVal & 0x03) {
+			case 0:
+				TargetType = "";
+				break;
+			case 1:
+				TargetType = "Combat";		// Uses CURSORS.GR 10
+				break;
+			case 2:
+				TargetType = "NonCombat";	// Uses CURSORS.GR 9
+				break;
 		}
-		else if ((SpellVal & 0x01) == 0x01) {
-			TargetType = "Combat";		// Uses CURSORS.GR 9
-		}
-	/*** May be misleading - will leave blank and think of something better later (maybe)
-		else {
-			TargetType = "Instant";
-		}
-	***/
 
+	// AreaOfEffect -- Applicable to class 6 - _think_ this is correct
+		std::string AreaOfEffect = "";
+		if (((SpellVal >> 3) & 0x1F) == 6) {
+			switch (SpellVal >> 30) {
+				case 0:
+					AreaOfEffect = "Around caster";
+					break;
+				case 1:
+					AreaOfEffect = "Cone";
+					break;
+				case 2:
+					AreaOfEffect = "In front";
+					break;
+			}
+		}
+
+	// Duration - Applicable to classes 0-3
+		std::string Duration = "";
+		if (((SpellVal >> 3) & 0x1F) < 4) {
+			switch (SpellVal >> 30) {
+				case 0:
+					Duration = "2d3";
+					break;
+				case 1:
+					Duration = "2d8";
+					break;
+				case 2:
+					Duration = "3d24";
+					break;
+			}
+		}
+	
 	// Export to CSV -- Note:  bits 29, 23, & 02 are unused and always 0 so excluding
 		fprintf(
 			MagOut,
@@ -132,8 +179,8 @@ int MAGXtract(
 			"%u,"	// Class
 			"%u,"	// SubClass
 			"%s,"	// TargetType
-			"%u,"	// b31
-			"%u\n",	// b30
+			"%s,"	// AreaOfEffect
+			"%s\n",	// Duration
 			s,												// SpellID -- Maybe should add 256 to match to string ID but going to leave as is since it's from the EXE's table
 			Circle.c_str(),									// Circle
 			gs.get_string(6, s + 256).c_str(),				// Spell
@@ -143,8 +190,8 @@ int MAGXtract(
 			(SpellVal >> 3) & 0x1F,							// Class
 			(SpellVal >> 24) & 0x1F,						// SubClass
 			TargetType.c_str(),								// TargetType
-			SpellVal >> 31,									// b31	-- Think I know what these two are now
-			(SpellVal >> 30) & 0x01							// b30
+			AreaOfEffect.c_str(),							// AreaOfEffect
+			Duration.c_str()								// Duration
 		);
 	}
 
