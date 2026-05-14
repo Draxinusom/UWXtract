@@ -105,7 +105,7 @@ int DATXtract(
 	// Create CSV export file and header
 		sprintf(TempPath, "%s\\COMOBJ.csv", OutPath.c_str());
 		FILE* out = fopen(TempPath, "w");
-		fprintf(out, "ItemID,ClassID,SubClassID,SubClassIndex,ItemName,ItemString,Height,Radius,IsAnimated,Mass,x3b0,x3b1,IsUseable,IsTemp,IsDecal,x3b5,CanLink,CanStack,IsContainer,MonetaryValue,x6b0,x6b1,QualityClass,x6b4,x6b5,x6b6,x6b7,x7b0,DestroyChance,CanPickup,x7b6,CanBeOwned,ResistMagic,ResistPhysical,ResistFire,ResistPoison,ResistCold,ResistMissile,IsUndead,RenderType,CullingPriority,QualityType,LookAtDetail,xAb5,xAb6,xAb7\n");
+		fprintf(out, "ItemID,ClassID,SubClassID,SubClassIndex,ItemName,ItemString,Height,Radius,IsAnimated,Mass,CanPlaceItem,IsUseable,IsTemp,IsDecal,CanPutInventory,CanLink,CanStack,IsContainer,MonetaryValue,IsSolid,ActivateOnImpact,QualityClass,Ricochet,DestroyChance,CanPickup,CanBeOwned,ResistMagic,ResistPhysical,ResistFire,ResistPoison,ResistCold,ResistMissile,IsUndead,RenderType,CullingPriority,QualityType,LookAtDetail\n");
 
 	// Get number of records
 		fseek(fd, 0, SEEK_END);
@@ -171,27 +171,21 @@ int DATXtract(
 				"%u,"	// Radius
 				"%u,"	// IsAnimated
 				"%.1f,"	// Mass
-				"%u,"	// x3b0
-				"%u,"	// x3b1
+				"%u,"	// CanPlaceItem
 				"%u,"	// IsUseable
 				"%u,"	// IsTemp
 				"%u,"	// IsDecal
-				"%u,"	// x3b5
+				"%u,"	// CanPutInventory
 				"%u,"	// CanLink
 				"%u,"	// CanStack
 				"%u,"	// IsContainer
 				"%u,"	// MonetaryValue
-				"%u,"	// x6b0
-				"%u,"	// x6b1
+				"%u,"	// IsSolid
+				"%u,"	// ActivateOnImpact
 				"%u,"	// QualityClass
-				"%u,"	// x6b4
-				"%u,"	// x6b5
-				"%u,"	// x6b6
-				"%u,"	// x6b7
-				"%u,"	// x7b0
+				"%u,"	// Ricochet
 				"%u,"	// DestroyChance
 				"%u,"	// CanPickup
-				"%u,"	// x7b6
 				"%u,"	// CanBeOwned
 				"%u,"	// ResistMagic
 				"%u,"	// ResistPhysical
@@ -203,10 +197,7 @@ int DATXtract(
 				"%s,"	// RenderType
 				"%u,"	// CullingPriority
 				"%u,"	// QualityType
-				"%u,"	// LookAtDetail
-				"%u,"	// xAb5
-				"%u,"	// xAb6
-				"%u\n",	// xAb7
+				"%u\n",	// LookAtDetail
 				i,									// ItemID
 				(i & 0x01C0) >> 6,					// ClassID
 				(i & 0x0030) >> 4,					// SubClassID
@@ -220,30 +211,26 @@ int DATXtract(
 				(B12 & 0x0008) >> 3,				// IsAnimated
 				((B12 & 0xFFF0) >> 4) * 0.1,		// Mass
 			// 03
-				buffer[3] & 0x01,					// x3b0
-				(buffer[3] & 0x02) >> 1,			// x3b1 -- Can stand on maybe?
+				//buffer[3] & 0x01,					// x3b0 -- Ignoring/Always 0
+				(buffer[3] & 0x02) >> 1,			// CanPlaceItem		-- Not sure best name to give but controls if another object can rest on it - set on things like beds/tables/boulders - if true an object can be dropped on it and remain - if false, it'll bounce around until it falls off the item
 				(buffer[3] & 0x04) >> 2,			// IsUseable
 				(buffer[3] & 0x08) >> 3,			// IsTemp
 				(buffer[3] & 0x10) >> 4,			// IsDecal
-				(buffer[3] & 0x20) >> 5,			// x3b5    -- Documented as CanPickup but think this is wrong, x07 B5 has all same items _except_ the odd items included here that can't be picked up (campfire/etc) / maybe interact flag of some sort
+				(buffer[3] & 0x20) >> 5,			// CanPutInventory	-- Documented as CanPickup but not quite right - x07b5 controls if you can pick it up/move it, this controls if you can put in inventory - armor with this flagged false can _still_ be directly picked up and put on character sheet/equipped
 				(buffer[3] & 0x40) >> 6,			// CanLink
-				(buffer[3] & 0x40) == 0x40 ? 0 : 1,	// CanStack
+				(((buffer[3] & 0x40) == 0x00) && ((buffer[7] & 0x20) == 0x20)) ? 1 : 0,	// CanStack
 				(buffer[3] & 0x80) >> 7,			// IsContainer
 			// 05/4
 				buffer[4] | (buffer[5] << 8),		// MonetaryValue
 			// 06
-				buffer[6] & 0x01,					// x6b0  -- Think may be collision flag?
-				(buffer[6] & 0x02) >> 1,			// x6b1
+				buffer[6] & 0x01,					// IsSolid  -- Can be collided with - if set to false on critters you can walk through them, projectiles will fly through, etc
+				(buffer[6] & 0x02) >> 1,			// ActivateOnImpact	-- On projectiles/ammos it causes it to do damage (arrow set to false won't damage but may push a critter for example) - it actiates/toggles useable objects (button/switch/lever/etc) when impacted by something (projectile/thrown object)
 				(buffer[6] & 0x0C) >> 2,			// QualityClass
-				(buffer[6] & 0x10) >> 4,			// x6b4
-				(buffer[6] & 0x20) >> 5,			// x6b5
-				(buffer[6] & 0x40) >> 6,			// x6b6
-				(buffer[6] & 0x80) >> 7,			// x6b7
-			// 07
-				buffer[7] & 0x01,					// x7b0
+				((buffer[6] & 0xF0) >> 4) | ((buffer[7] & 0x01) << 4),	// Ricochet -- Controls how far/long a moving object (projectile/thrown/whatever) will bounce around after colliding with something (wall or other collidable object) - if 0 it will just fall straight down
+			// 07 - b1 included above
 				(buffer[7] & 0x1E) >> 1,			// DestroyChance
 				(buffer[7] & 0x20) >> 5,			// CanPickup
-				(buffer[7] & 0x40) >> 6,			// x7b6
+				//(buffer[7] & 0x40) >> 6,			// x7b6 -- Ignoring/Always 0
 				(buffer[7] & 0x80) >> 7,			// CanBeOwned
 			// 08
 				(buffer[8] & 0x03) == 0x03 ? 1 : 0,	// ResistMagic -- Not sure why this is 2 bits - curious if 1 is damage & 1 is status but all usage has both set if not 00 so kinda moot
@@ -258,10 +245,10 @@ int DATXtract(
 				(buffer[9] & 0xFC) >> 2,			// CullingPriority
 			// 0A
 				buffer[10] & 0x0F,					// QualityType
-				(buffer[10] & 0x10) >> 4,			// LookAtDetail
-				(buffer[10] & 0x20) >> 5,			// xAb5
-				(buffer[10] & 0x40) >> 6,			// xAb6
-				(buffer[10] & 0x80) >> 7			// xAb7
+				(buffer[10] & 0x10) >> 4			// LookAtDetail
+				//(buffer[10] & 0x20) >> 5,			// xAb5 -- Ignoring/Always 0
+				//(buffer[10] & 0x40) >> 6,			// xAb6 -- Ignoring/Always 0
+				//(buffer[10] & 0x80) >> 7			// xAb7 -- Ignoring/Always 0
 			);
 		}
 		fclose(fd);
