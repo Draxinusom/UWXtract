@@ -5,11 +5,7 @@
 
 	Extracts the embedded magic spell data from the UW/UW2 executable
 
-	Note:	Contains all player castable spells plus a few extra -- Need to check but guessing they're either scrolls or wands the player can use
-
-	Todo:
-		There's 2 bits I'm not sure what they mean/do but have pretty obvious
-		spell type groupings where set so may attempt to sort those out
+	Note:	Contains all player castable spells plus a few extra for scrolls or wands the player can use or enemy spell/ability
 *************/
 #include "UWXtract.h"
 
