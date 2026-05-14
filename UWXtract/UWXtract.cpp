@@ -229,7 +229,15 @@ int main(
 	}
 // VOC
 	else if (_stricmp("voc", argv[1]) == 0) {
-		return VOCXtract(UWPath, OutPath);
+	// Break if PocketPC
+		if (IsPPC) {
+			printf("VOC extract not applicable for PocketPC version.\n");
+			return -1;
+		}
+		else {
+			return VOCXtract(UWPath, OutPath);
+		}
+	}
 	}
 // Save test - not listed
 	else if (!IsUW2 && _stricmp("raw", argv[1]) == 0) {
