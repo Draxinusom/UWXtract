@@ -789,22 +789,39 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_CONTAINER.csv", OutPath.c_str());
 			FILE* OBJECT_CONTAINER = fopen(TempPath, "w");
-			fprintf(OBJECT_CONTAINER, "ItemID,Name,Capacity,AcceptID,AcceptName,Slots\n");
+			fprintf(OBJECT_CONTAINER, "ItemID,Name,Capacity,AllowType\n");
 
 			unsigned char buffer[3];
 			for (int i = 0x80; i < 0x90; i++) {
 				fread(buffer, 1, 3, fd);
 
+			/***
+				Documentation is incorrect, no limit on slots for type specific containers (I knew this, not sure why I left it this way - they wouldn't all be 2 if they were anyways)
+
+				How it actually works is bytes 1-2 are a 16 bit value, not two separate values
+				with values under 512 (so in item ID range) being item specific and values over
+				being for item types (or all)
+
+				The item specific type isn't used but was tested by setting a map case to only accept various
+				items and it works as expected, taking daggers or slings, or maps still if set specifically to allow it
+			***/
+				unsigned short AcceptType = (buffer[1] | (buffer[2] << 8));
+
 			// Translate type of items container accepts
-				const char* AcceptName;
-				switch (buffer[1]) {
-					case   0:	AcceptName = "Runes"; break;
-					case   1:	AcceptName = "Arrows"; break;
-					case   2:	AcceptName = "Scrolls"; break;
-					case   3:	AcceptName = "Edibles"; break;
-					case   4:	AcceptName = "Keys"; break;
-					case 255:	AcceptName = "Any"; break;
-					default:	AcceptName = "Unknown"; break;
+				std::string AcceptName = "";
+				if (AcceptType < 512) {
+					AcceptName = "Item: " + CleanDisplayName(gs.get_string(4, AcceptType).c_str(), true, false);
+				}
+				else {
+					switch (AcceptType) {
+						case   512:	AcceptName = "Runes"; break;
+						case   513:	AcceptName = "Arrows"; break;
+						case   514:	AcceptName = "Scrolls"; break;
+						case   515:	AcceptName = "Edibles"; break;
+						case   516:	AcceptName = "Keys"; break;
+						case 65535:	AcceptName = "Any"; break;
+						default:	AcceptName = "Unknown"; break;
+					}
 				}
 
 			// Export to CSV
@@ -813,15 +830,11 @@ int DATXtract(
 					"%u,"	// ItemID
 					"%s,"	// Name
 					"%.1f,"	// Capacity
-					"%u,"	// AcceptID
-					"%s,"	// AcceptName
-					"%u\n",	// Slots
+					"%s\n",	// AllowedItem
 					i,					// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
 					buffer[0] * 0.1,	// Capacity
-					buffer[1],			// AcceptID
-					AcceptName,			// AcceptName
-					buffer[2]			// Slots
+					AcceptName.c_str()	// AllowType
 				);
 			}
 			fclose(OBJECT_CONTAINER);
