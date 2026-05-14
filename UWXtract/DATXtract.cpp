@@ -347,25 +347,84 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_RANGED.csv", OutPath.c_str());
 			FILE* OBJECT_RANGED = fopen(TempPath, "w");
-			fprintf(OBJECT_RANGED, "ItemID,Name,Durability,x01,x02\n");
+			fprintf(OBJECT_RANGED, "ItemID,Name,Damage,ForceRange,AmmoID,AmmoName,DamageType\n");
+			/***
+				ForceRange
+
+				Not sure which to call it, definitely impacts range but also controls how fast it flies (speed seems wrong term here)
+				so force may be more accurate but think that may be confusing or unclear - especially when range is probably what players would care about
+
+				I'll note that it appears to combine ammo and launcher ForceRange values to determine actual force or range or whatever		
+			***/
 
 			unsigned char buffer[3];
 			for (int i = 0x10; i < 0x20; i++) {
 				fread(buffer, 1, 3, fd);
+
+			// Bit 7 in 3rd byte _appears_ to be a flag indicating if it is ammo
+				bool IsLauncher = !((buffer[2] & 0x80) == 0x80);
+
+			/***
+				DamageType
+				This is kinda odd, I'm near certain that's what it is as the damage types match up
+				except they're backwards, Fireball has the Fire resistance bit set false and others (including cold in 2) set true
+
+				_Assuming_ it's a negation of some sort - i.e. & it against the critter's resistance and see if anything remains
+
+				If it works that way, regular ammo needs to be handled separate as it'd leave everything flagged _except_ missile damage
+
+				Additionally, Magic resistance is odd in that it is 2 bits on the critter (assuming that's correct I guess) but only 1 bit gets set here
+
+				Also unclear on multiple types set (Magic/Fire) on Fireballs - does that end up halving the damage if resistanct to 1 and not the other?
+			***/
+				std::string DamageType = "";
+				if (!IsLauncher && buffer[2] != 0xFF) {	// Need to skip unused types in 1
+					if (buffer[2] == 0xC0) {
+						DamageType = "/Missile";
+					}
+
+					else {
+						if ((buffer[2] & 0x03) == 0x01) {	// Not 100% clear on how this one works
+							DamageType = DamageType + "/Magic";
+						}
+						if ((buffer[2] & 0x04) == 0x00) {
+							DamageType = DamageType + "/Physical";
+						}
+						if ((buffer[2] & 0x08) == 0x00) {
+							DamageType = DamageType + "/Fire";
+						}
+						if ((buffer[2] & 0x10) == 0x00) {
+							DamageType = DamageType + "/Poison";
+						}
+						if ((buffer[2] & 0x20) == 0x00) {
+							DamageType = DamageType + (IsUW2 ? "/Cold" : "/Shock");
+						}
+						if ((buffer[2] & 0x40) == 0x00) {
+							DamageType = DamageType + "/Missile";
+						}
+					}
+
+				// Strip leading /
+					DamageType = DamageType.substr(1, DamageType.length() - 1);
+				}
 
 			// Export to CSV
 				fprintf(
 					OBJECT_RANGED,
 					"%u,"		// ItemID
 					"%s,"		// Name
-					"%u,"		// Durability
-					"%02X,"		// x01 -- Unknown
-					"%02X\n",	// x02 -- Unknown
-					i,				// ItemID
-					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
-					buffer[0],		// Durability
-					buffer[1],		// x01 -- Unknown
-					buffer[2]		// x02 -- Unknown
+					"%u,"		// Damage
+					"%u,"		// ForceRange
+					"%s,"		// AmmoID
+					"%s,"		// AmmoName
+					"%s\n",		// DamageType
+					i,					// ItemID
+					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),						// Name
+					buffer[0],			// Damage
+					buffer[1],			// ForceRange
+					IsLauncher ? std::to_string(buffer[2] + 16).c_str() : "",									// AmmoID
+					IsLauncher ? CleanDisplayName(gs.get_string(4, buffer[2] + 16).c_str(), true, false).c_str() : "",	// AmmoName
+					DamageType.c_str()	// DamageType
 				);
 			}
 			fclose(OBJECT_RANGED);
