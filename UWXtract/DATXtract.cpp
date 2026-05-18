@@ -487,7 +487,7 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_CRITTER.csv", OutPath.c_str());
 			FILE* OBJECT_CRITTER = fopen(TempPath, "w");
-			fprintf(OBJECT_CRITTER, "ItemID,Name,BaseArmor,Armor1,Armor2,Armor3,HP,STR,DEX,INT,DeathVOC,BloodOnHit,BloodOnDeath,Race,x0Ab0,x0Ab1,Corpse,x0Ab5,Swim,Fly,x0B,MoveSpeed,ConvLevel,TradeAbility,TradeThreshold,TradePatience,PoisonDamage,Category,Attack,Defense,SlashSkill,SlashDamage,SlashChance,BashSkill,BashDamage,BashChance,StabSkill,StabDamage,StabChance,x1C,SearchDistance,Ears,Eyes,x1F,DropItem1Name,DropItem1Spawn,DropItem2Name,DropItem2Spawn,DropItem3Name,DropItem3Chance,DropItem4Name,DropItem4Chance,DropCoinCalc,DropCoinChance,DropFoodName,DropFoodChance,EXP,Spell1,Spell2,Spell3,IsCaster,StudyMonster,LockPicking,x2F\n");
+			fprintf(OBJECT_CRITTER, "ItemID,Name,BaseArmor,Armor1,Armor2,Armor3,HP,STR,DEX,INT,DeathVOC,BloodOnHit,BloodOnDeath,Race,DmgWeapOnCritMiss,IsPassive,Corpse,x0Ab5,Swim,Fly,Speed_Normal,Speed_Combat,ConvLevel,TradeAbility,TradeThreshold,TradePatience,PoisonDamage,Category,Attack,Defense,SlashSkill,SlashDamage,SlashChance,BashSkill,BashDamage,BashChance,StabSkill,StabDamage,StabChance,x1C,SearchDistance,Ears,Eyes,x1F,DropItem1Name,DropItem1Spawn,DropItem2Name,DropItem2Spawn,DropItem3Name,DropItem3Chance,DropItem4Name,DropItem4Chance,DropCoinCalc,DropCoinChance,DropFoodName,DropFoodChance,EXP,Spell1,Spell2,Spell3,IsCaster,SpellChance,LockPicking,x2F\n");
 
 			for (int i = 0x40; i < 0x80; i++) {
 				unsigned char buffer[48];
@@ -521,6 +521,20 @@ int DATXtract(
 					}
 					else {   // Only EV creatures don't have a name in 2
 						DisplayName = "Ethereal Void Creature";
+					}
+				}
+
+			// Get DeathVOC - UW2 only
+				std::string DeathVOC = "";
+				if (IsUW2) {
+					switch (buffer[8] & 0x07) {
+						case 0:	break;
+						case 1: DeathVOC = "SP06.VOC"; break;
+					// Remainder are value + 32 - valid values are only 2-4 (34-36)
+						case 2:	DeathVOC = "SP34.VOC"; break;
+						case 3:	DeathVOC = "SP35.VOC"; break;
+						case 4:	DeathVOC = "SP36.VOC"; break;
+						default:	DeathVOC = "SP" + std::to_string((buffer[8] & 0x07) + 31) + ".VOC (Invalid)"; break;
 					}
 				}
 
@@ -657,18 +671,18 @@ int DATXtract(
 					"%u,"		// STR
 					"%u,"		// DEX
 					"%u,"		// INT
-					"%u,"		// DeathVOC
+					"%s,"		// DeathVOC
 					"%u,"		// BloodOnHit
 					"%s,"		// BloodOnDeath
 					"%s,"		// Race
-					"%u,"		// x0Ab0 -- Unknown
-					"%u,"		// x0Ab1 -- Unknown
+					"%u,"		// DmgWeapOnCritMiss
+					"%u,"		// IsPassive
 					"%s,"		// Corpse
 					"%u,"		// x0Ab5 -- Unknown
 					"%u,"		// Swim
 					"%u,"		// Fly
-					"%02X,"		// x0B -- Unknown
-					"%u,"		// MoveSpeed
+					"%02X,"		// Speed_Normal
+					"%u,"		// Speed_Combat
 					"%u,"		// ConvLevel
 					"%u,"		// TradeAbility
 					"%u,"		// TradeThreshold
@@ -708,7 +722,7 @@ int DATXtract(
 					"%s,"		// Spell2
 					"%s,"		// Spell3
 					"%u,"		// IsCaster
-					"%u,"		// StudyMonster
+					"%u,"		// SpellChance
 					"%u,"		// LockPicking
 					"%02X\n",	// x2F -- Unknown
 					i,								// ItemID
@@ -721,19 +735,18 @@ int DATXtract(
 					buffer[5],						// STR
 					buffer[6],						// DEX
 					buffer[7],						// INT
-					buffer[8] & 0x07,				// DeathVOC
+					DeathVOC.c_str(),				// DeathVOC
 					(buffer[8] & 0x18) >> 3,		// BloodOnHit
 					Remains,						// BloodOnDeath (8 >> 5)
 					CleanDisplayName(gs.get_string(1, buffer[9] + 370).c_str(), true, false).c_str(),	// Race
-					//buffer[10],					// Passiveness -- Nope
-					buffer[10] & 0x01,				// x0Ab0 -- Unknown
-					(buffer[10] & 0x02) >> 1,		// x0Ab1 -- Unknown -- Only set on UW1 for Ethereal Void creatures, Wisp, and Player
+					(buffer[10] & 0x01) == 1 ? 0 : 1,	// DmgWeapOnCritMiss - Value is inverted here, 1 if won't damage, 0 if will - WillNotDmgWeapOnCritMiss is a little long so inverting :P
+					(buffer[10] & 0x02) >> 1,		// IsPassive -- No response/change attitude when attacked -- Only set in UW1 for Ethereal Void creatures, Wisp, and Player
 					CleanDisplayName(gs.get_string(4, ((buffer[10] & 0x1C) >> 2) + CorpseOffset).c_str(), true, false).c_str(),	// Corpse
-					(buffer[10] & 0x20) >> 5,		// x0Ab5 -- Unknown
+					(buffer[10] & 0x20) >> 5,		// x0Ab5 -- Unknown - Set on things with legs (except player), off on flyers, swimmers, slugs/worms/etc
 					(buffer[10] & 0x40) >> 6,		// Swim
 					(buffer[10] & 0x80) >> 7,		// Fly
-					buffer[11],						// x0B -- Unknown
-					buffer[12],						// MoveSpeed
+					buffer[11],						// Speed_Normal	-- Not 100% sure this covers all other behaviors but seems to
+					buffer[12],						// Speed_Combat
 					buffer[13] & 0x0F,				// ConvLevel
 					buffer[13] >> 4,				// TradeAbility
 					buffer[14] & 0x0F,				// TradeThreshold
@@ -772,9 +785,9 @@ int DATXtract(
 					CleanDisplayName(gs.get_string(6, buffer[42] + Spell1Offset).c_str(), true, false).c_str(),	// Spell1
 					CleanDisplayName(gs.get_string(6, buffer[43] + Spell2Offset).c_str(), true, false).c_str(),	// Spell2
 					CleanDisplayName(gs.get_string(6, buffer[44] + Spell3Offset).c_str(), true, false).c_str(),	// Spell3
-					buffer[45] & 0x01,				// IsCaster
-					buffer[45] >> 1,				// StudyMonster -- Need to look into this, not sure I buy this as it's populated in UW1
-					buffer[46],						// LockPicking
+					buffer[45] & 0x01,				// IsCaster - Won't cast spells, even with Spells and value in SpellChance if not set - Guessing special code for Great Troll regen as it won't cast the heal spell it has, probably is there with value in SpellChance so it'll show in Study Monster spell only
+					buffer[45] >> 1,				// SpellChance -- Referenced by StudyMonster, if 0 it doesn't return spells, but appears to control how often the critter casts spells - if set to FF, it'll just stand there and cast non-stop, if 1 (or 3 technically) it will cast very rarely
+					buffer[46],						// LockPicking - Not sure if actual skill or bit mask of locks it can open - value of 1 will let it open standard doors - doesn't appear they'll ever open hidden ones
 					buffer[47]						// x2F -- Unknown
 				);
 			}
