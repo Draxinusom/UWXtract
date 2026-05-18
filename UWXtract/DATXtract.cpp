@@ -925,23 +925,88 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_ANIMATION.csv", OutPath.c_str());
 			FILE* OBJECT_ANIMATION = fopen(TempPath, "w");
-			fprintf(OBJECT_ANIMATION, "ItemID,Name,x00,StartFrame,FrameCount\n"); // Not bothering with 01 as it's always 00 (probably a u16 with 00)
+			fprintf(OBJECT_ANIMATION, "ItemID,Name,NextFrame,MoveObject,RemoveObject,x00b7,StartFrame,FrameCount\n"); // Not bothering with 01 as it's always 00 (probably a u16 with 00)
 
 			unsigned char buffer[4];
 			for (int i = 0x01C0; i < 0x01D0; i++) {
 				fread(buffer, 1, 4, fd);
+			/***
+				x00 - Appears to be a bit field - Primarily used the Silver Tree in UW1 and the door nearby as a test
+
+				B0	NextFrame_Sequential
+					Go to next frame, off for Sound Source/Changing Terrain in 1 and Moving Doors in both - on for all others
+					If turned off on ones where it is on, it just sits on first frame (doesn't animate) unless B1 is set
+					If turned on for doors it will actually cycle through the door items on each frame, which is kinda fun but it can block you off it changes to a portcullis
+
+				B1	NextFrame_Random
+					Looks to control play order - off on all
+					when off, it plays the animation in sequence (if B0 set)
+					when on, it will randomly (at least looks random) go to the next or previous frame
+					possible it can also pick the same as it'll sit sometimes with no change for what should be a frame or two's worth of time so maybe -1 to 1 range
+					B0 setting doesn't seem to matter, it works whether set or not
+
+					Except when set on Moving Door where it hard crashes the game
+
+				B2	MoveObject
+					Does the animation move position
+					Off on all except Moving Door
+					Test setting on for the Silver Tree in UW1 caused the tree to move up through the ceiling and disappearing
+					before coming back up through the floor a short time later
+					When used in conjuction with B1, it will go up or down, depending on whether it went to the next frame (up)
+					or the previous frame (down) - I'll note it did not always move either direction when it switched frames (though _usually did)
+
+					When turned off on doors, the door will sit in place the duration of the animation before placing a wall there
+					and dropping the open door halfway into the floor - kinda odd looking and hard to describe
+					If B0 is set, it will still cycle the door items, just in place before dropping whatever it landed on into the floor
+
+				B3/4	Unknown/Unused
+					Not set on any, no visible effect when either/both set
+
+				B5	RemoveObject
+					Remove after animation cycled through/completed - Set on all with B0 set
+
+					Kinda dodgy, does not remove actual objects, like the silver tree; however, when not set on temporary things,
+					like blood, it will leave the last frame it played hovering in the air
+					When turned on for Moving Doors, it causes the door and wall frame around it to disappear after it completes,
+					i.e. completely closed/opened - not invisible, it's gone and can walk through
+
+					Maybe flag is more like IsTemporary?
+
+				B6	Unknown/Unused
+					Not set on any, did not notice any difference when turning on
+
+				B7	Unknown
+					Set on Moving Door, did not notice any difference turning off for that or on for others
+			***/
+
+			std::string NextFrame = "";
+			if ((buffer[0] & 0x03) > 1) {
+				NextFrame = "Random";
+			}
+			else if ((buffer[0] & 0x03) == 1) {
+				NextFrame = "Sequential";
+			}
 
 			// Export to CSV
 				fprintf(
 					OBJECT_ANIMATION,
 					"%u,"		// ItemID
 					"%s,"		// Name
-					"%02X,"		// x00 -- Unknown
+					"%s,"		// NextFrame
+					"%u,"		// MoveObject
+					"%u,"		// RemoveObject
+					"%u,"		// x00b7 - Unknown flag set on Moving Door only
 					"%u,"		// StartFrame
 					"%u\n",		// FrameCount
 					i,				// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
-					buffer[0],		// x00 -- Unknown
+					NextFrame.c_str(),			// NextFrame
+					(buffer[0] & 0x04) >> 2,	// MoveObject
+				// Skipping bits 3-4 - can find no effect when set
+					(buffer[0] & 0x20) >> 5,	// RemoveObject
+				// Skipping bit 6 - can find no effect when set
+					(buffer[0] & 0x80) >> 7,	// x00b7 - Unknown flag set on Moving Door only
+				// Skipping byte 1 - can find no effect when set
 					buffer[2],		// StartFrame
 					buffer[3]		// FrameCount
 				);
