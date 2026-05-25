@@ -224,9 +224,9 @@ int DATXtract(
 				buffer[4] | (buffer[5] << 8),		// MonetaryValue
 			// 06
 				buffer[6] & 0x01,					// IsSolid  -- Can be collided with - if set to false on critters you can walk through them, projectiles will fly through, etc
-				(buffer[6] & 0x02) >> 1,			// ActivateOnImpact	-- On projectiles/ammos it causes it to do damage (arrow set to false won't damage but may push a critter for example) - it actiates/toggles useable objects (button/switch/lever/etc) when impacted by something (projectile/thrown object)
+				(buffer[6] & 0x02) >> 1,			// ActivateOnImpact	-- On projectiles/ammos it causes it to do damage (arrow set to false won't damage but may push a critter for example) - it activates/toggles useable objects (button/switch/lever/etc) when impacted by something (projectile/thrown object)
 				(buffer[6] & 0x0C) >> 2,			// QualityClass
-				((buffer[6] & 0xF0) >> 4) | ((buffer[7] & 0x01) << 4),	// Ricochet -- Controls how far/long a moving object (projectile/thrown/whatever) will bounce around after colliding with something (wall or other collidable object) - if 0 it will just fall straight down
+				((buffer[6] & 0xF0) >> 4) | ((buffer[7] & 0x01) << 4),	// Ricochet -- Controls how far/long a moving object (projectile/thrown/whatever) will bounce around after colliding with something (wall or other collidable object) - if 0 it will just fall straight down - maybe Rebound better name?
 			// 07 - b1 included above
 				(buffer[7] & 0x1E) >> 1,			// DestroyChance
 				(buffer[7] & 0x20) >> 5,			// CanPickup
@@ -305,7 +305,15 @@ int DATXtract(
 					case  3:	SkillName = "Sword"; break;
 					case  4:	SkillName = "Axe"; break;
 					case  5:	SkillName = "Mace"; break;
-					case  6:	SkillName = "Unarmed"; break;
+					case  6:
+					// Skill name differs between 1/2
+						if (IsUW2) {
+							SkillName = "Barehand";
+						}
+						else {
+							SkillName = "Unarmed";
+						}
+						break;
 					default:	SkillName = "Unknown"; break;
 				}
 
@@ -382,7 +390,6 @@ int DATXtract(
 					if (buffer[2] == 0xC0) {
 						DamageType = "/Missile";
 					}
-
 					else {
 						if ((buffer[2] & 0x03) == 0x01) {	// Not 100% clear on how this one works
 							DamageType = DamageType + "/Magic";
@@ -465,7 +472,7 @@ int DATXtract(
 					"%u,"		// CategoryID
 					"%s,"		// CategoryName
 					"%u,"		// Protection
-					"%u,"		// Durability
+					"%i,"		// Durability
 					"%02X\n",	// x02 -- Unknown
 					i,				// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
@@ -1299,7 +1306,7 @@ int DATXtract(
 				unsigned char SoundData[8];
 				fread(SoundData, 1, 8, fd);
 
-			// UW2 has additional effects that are not includedfdhjsalsfda
+			// UW2 has additional effects that are not included
 				std::string TimbreName = "";
 				if (SoundData[0] < 28) {
 					TimbreName = SoundEffect[SoundData[0]];
@@ -1439,6 +1446,26 @@ int DATXtract(
 		and no pattern really stood out when lining it up with the frames
 
 		Honestly have no clue why I spent this much time on this
+
+		********************************
+		**** Staring at Hex Round 2 ****
+		********************************
+
+		Since I'm an idiot, I spent a little more time looking at this and it looks like maybe it's just
+		garbage data from a bad file export that they must have coded around to ignore or something
+
+		For the trailing 245 bytes, if you skip 16, it looks like it begins at MaceRightX[0], with only the first
+		4 bytes being different, then continues down to AxeLeftY[11] with only a couple variations here and there,
+		primarily replacing F0 in the standard data with E0
+
+		If you tack on the 35 byte "header" to the end of this, it then continues as a perfect match for AxeLeftY[12] through MaceLeftX[16].
+
+		At that point you can tack the 16 bytes skipped at the beginning of the 245 byte section starting at MaceLeftX[27] (11 bytes skipped)
+		and it is a pretty close match through to MaceLeftY[12]
+
+		Could just be going mad and starting to see shit after staring at a bunch of hex for too long, but the 35 byte "header" matching exactly
+		starting in the middle of one weapon/axis through to a different weapon/axis seems a bit much to be a coincidence while stopping partially
+		through a weapon's data also making no sense whatsoever with how the file is used, hence my belief that this extra data is likely unused/irrelevant
 	***/
 		unsigned short int FrameCount = !IsUW2 ? 28 : 31;
 		unsigned short int StartOffset = !IsUW2 ? 0 : 35;
@@ -1480,11 +1507,18 @@ int DATXtract(
 				case  0:	WeaponName = "Sword"; Hand = "Right"; break;
 				case  1:	WeaponName = "Axe"; Hand = "Right"; break;
 				case  2:	WeaponName = "Mace"; Hand = "Right"; break;
-				case  3:	WeaponName = "Unarmed"; Hand = "Right"; break;	// Originally had this as "Fist" but decided it was better to match the skill name
+				case  3:
+				// Originally had this as "Fist" but decided it was better to match the skill name
+					WeaponName = IsUW2 ? "Barehand" : "Unarmed";
+					Hand = "Right";
+					break;
 				case  4:	WeaponName = "Sword"; Hand = "Left"; break;
 				case  5:	WeaponName = "Axe"; Hand = "Left"; break;
 				case  6:	WeaponName = "Mace"; Hand = "Left"; break;
-				case  7:	WeaponName = "Unarmed"; Hand = "Left"; break;
+				case  7:
+					WeaponName = IsUW2 ? "Barehand" : "Unarmed";
+					Hand = "Left";
+					break;
 				default:	WeaponName = "Unknown"; Hand = "Unknown"; break;
 			}
 
