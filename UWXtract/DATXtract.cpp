@@ -22,6 +22,8 @@
 *************/
 #include "UWXtract.h"
 
+extern std::string GetPercent(const unsigned int Value, const unsigned int Range, const unsigned char Precision, bool IncludePercent = 1);	// Util.cpp
+
 int DATXtract(
 	const bool IsUW2,
 	const bool IsPPC,
@@ -327,7 +329,7 @@ int DATXtract(
 					"%u,"	// Slash
 					"%u,"	// Bash
 					"%u,"	// Stab
-					"%u,"	// Durability
+					"%hhi,"	// Durability
 					"%u,"	// Speed
 					"%u,"	// MinCharge
 					"%u\n",	// MaxCharge
@@ -426,10 +428,10 @@ int DATXtract(
 					"%s,"		// AmmoName
 					"%s\n",		// DamageType
 					i,					// ItemID
-					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),						// Name
+					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),		// Name
 					buffer[0],			// Damage
 					buffer[1],			// ForceRange
-					IsLauncher ? std::to_string(buffer[2] + 16).c_str() : "",									// AmmoID
+					IsLauncher ? std::to_string(buffer[2] + 16).c_str() : "",				// AmmoID
 					IsLauncher ? CleanDisplayName(gs.get_string(4, buffer[2] + 16).c_str(), true, false).c_str() : "",	// AmmoName
 					DamageType.c_str()	// DamageType
 				);
@@ -472,7 +474,7 @@ int DATXtract(
 					"%u,"		// CategoryID
 					"%s,"		// CategoryName
 					"%u,"		// Protection
-					"%i,"		// Durability
+					"%hhi,"		// Durability
 					"%02X\n",	// x02 -- Unknown
 					i,				// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
@@ -480,7 +482,7 @@ int DATXtract(
 					CategoryName,	// CategoryyName
 					buffer[0],		// Protection
 					buffer[1],		// Durability
-					buffer[2]		// x02 -- Unknown
+					buffer[2]		// x02 -- Unknown - Maybe a grouping for damage probability or a stealth related thing?
 				);
 			}
 			fclose(OBJECT_ARMOR);
@@ -494,21 +496,19 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_CRITTER.csv", OutPath.c_str());
 			FILE* OBJECT_CRITTER = fopen(TempPath, "w");
-			fprintf(OBJECT_CRITTER, "ItemID,Name,BaseArmor,Armor1,Armor2,Armor3,HP,STR,DEX,INT,DeathVOC,BloodOnHit,BloodOnDeath,Race,DmgWeapOnCritMiss,IsPassive,Corpse,x0Ab5,Swim,Fly,Speed_Normal,Speed_Combat,ConvLevel,TradeAbility,TradeThreshold,TradePatience,PoisonDamage,Category,Attack,Defense,SlashSkill,SlashDamage,SlashChance,BashSkill,BashDamage,BashChance,StabSkill,StabDamage,StabChance,x1C,SearchDistance,Ears,Eyes,x1F,DropItem1Name,DropItem1Spawn,DropItem2Name,DropItem2Spawn,DropItem3Name,DropItem3Chance,DropItem4Name,DropItem4Chance,DropCoinCalc,DropCoinChance,DropFoodName,DropFoodChance,EXP,Spell1,Spell2,Spell3,IsCaster,SpellChance,LockPicking,x2F\n");
+			fprintf(OBJECT_CRITTER,
+				"ItemID,Name,Armor_Body,Armor_Hand,Armor_Feet,Armor_Head,HP,STR,DEX,INT,Death_VOC,Blood_Hit,Blood_Death,"
+				"Race,DmgWeapOnCritMiss,IsPassive,Corpse,Jump,Swim,Fly,Speed_Normal,Speed_Combat,NPC_Level,Trade_Ability,"
+				"Trade_Threshold,Trade_Patience,Poison_Damage,Category,Attack_Skill,Defense_Skill,Slash_Skill,Slash_Damage,"
+				"Slash_Chance,Bash_Skill,Bash_Damage,Bash_Chance,Stab_Skill,Stab_Damage,Stab_Chance,Flee_Threshold,Wander_Range,"
+				"Stealth,Ears,Eyes,Wander_Duration,Pursue_Range,Item1_Name,Item1_Chance,Item2_Name,Item2_Chance,Item3_Name,"
+				"Item3_Chance,Item4_Name,Item4_Chance,Treasure_QtyCalc,Treasure_Chance,Food_Name,Food_Chance,XP,Spell1_Name,"
+				"Spell1_Chance,Spell2_Name,Spell2_Chance,Spell3_Name,Spell3_Chance,IsCaster,LockPicking\n"
+			);
 
 			for (int i = 0x40; i < 0x80; i++) {
 				unsigned char buffer[48];
 				fread(buffer, 1, 48, fd);
-
-			/***  Pulling this, pretty sure it's just a true/false on showing blood on hit
-				// Translate blood type
-				const char* BloodType;
-				switch ((buffer[8] & 0x18) >> 3) {
-					case 0: BloodType = "Dust"; break;  // Not sure if dust is right, kinda a small explosion star but whatever
-					case 1: BloodType = "Blood"; break;
-					default: BloodType = "Unknown"; break;
-				}
-			***/
 
 			// Get critter's item name
 				std::string DisplayName = CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str();
@@ -546,21 +546,21 @@ int DATXtract(
 				}
 
 			// Hardcode critter's remains item -- Note: Val + 217 maps to ItemID but hardcoded so Red/Green Blood Stain can be called out (itemname for both is just Blood Stain)
-				const char* Remains;
+				std::string BloodOnDeath = "";
 				switch (buffer[8] >> 5) {
-					case  0:	Remains = "Nothing"; break;
-					case  1:	Remains = "Dead Rotworm"; break;
-					case  2:	Remains = "Rubble"; break;
-					case  3:	Remains = "Pile of Wood Chips"; break;
-					case  4:	Remains = "Pile of Bones"; break;
-					case  5:	Remains = "Blood Stain (Green)"; break;
-					case  6:	Remains = "Blood Stain (Red)"; break;
-					case  7:	Remains = "Blood Stain (Alt)"; break;	// 2nd red type in UW1 - image is identical
-					default:	Remains = "Unknown"; break;
+					case  0:	BloodOnDeath = "Nothing"; break;
+					case  1:	BloodOnDeath = "Dead Rotworm"; break;
+					case  2:	BloodOnDeath = "Rubble"; break;
+					case  3:	BloodOnDeath = "Pile of Wood Chips"; break;
+					case  4:	BloodOnDeath = "Pile of Bones"; break;
+					case  5:	BloodOnDeath = "Blood Stain (Green)"; break;
+					case  6:	BloodOnDeath = "Blood Stain (Red)"; break;
+					case  7:	BloodOnDeath = "Blood Stain (Alt)"; break;	// 2nd red type in UW1 - image is identical
+					default:	BloodOnDeath = "Unknown"; break;
 				}
 
 			// Translate critter category type
-				const char* Category;
+				std::string Category = "";
 				switch (buffer[16]) {
 					case  0:	Category = "Ethereal"; break;
 					case  1:	Category = "Humanoid"; break;
@@ -579,9 +579,14 @@ int DATXtract(
 					CorpseOffset += 319; // Push to end of list so blank if none
 				}
 
+			// Flag attack types used - flagging now so don't redo checks for each below
+				bool CanSlash = (buffer[19] == 0 && buffer[20] == 0 && buffer[21] == 0) ? false : true;
+				bool CanBash = (buffer[22] == 0 && buffer[23] == 0 && buffer[24] == 0) ? false : true;
+				bool CanStab = (buffer[25] == 0 && buffer[26] == 0 && buffer[27] == 0) ? false : true;
+
 			// Get loot
 				std::string Item1Name = "";
-				if (buffer[32] > 0x00 && buffer[33] < 0xFF) {	// Not doing != 0x00 here because some have FF which is also invalid
+				if (buffer[32] > 0x00 && buffer[32] < 0xFF) {	// Not doing != 0x00 here because some have FF which is also invalid
 					Item1Name = CleanDisplayName(gs.get_string(4, (buffer[32] >> 1)).c_str(), true, false);
 				}
 				std::string Item2Name = "";
@@ -589,213 +594,266 @@ int DATXtract(
 					Item2Name = CleanDisplayName(gs.get_string(4, (buffer[33] >> 1)).c_str(), true, false);
 				}
 				std::string Item3Name = "";
+				std::string Item3Chance = "";
 				if ((buffer[34] | (buffer[35] << 8)) != 0x00) {
 					Item3Name = CleanDisplayName(gs.get_string(4, ((buffer[34] | (buffer[35] << 8)) >> 4)).c_str(), true, false);
+					Item3Chance = GetPercent((buffer[34] & 0x0F), 15, 2);
 				}
 				std::string Item4Name = "";
+				std::string Item4Chance = "";
 				if ((buffer[36] | (buffer[37] << 8)) != 0x00) {
 					Item4Name = CleanDisplayName(gs.get_string(4, ((buffer[36] | (buffer[37] << 8)) >> 4)).c_str(), true, false);
+					Item4Chance = GetPercent((buffer[36] & 0x0F), 15, 2);
 				}
 				std::string FoodName = "";
+				std::string FoodChance = "";
 				if (buffer[39] > 0x00 && buffer[39] < 0xFF) {
 					FoodName = CleanDisplayName(gs.get_string(4, (buffer[39] >> 4) + 0xB0).c_str(), true, false);
+					FoodChance = GetPercent((buffer[39] & 0x0F), 15, 2);
 				}
 
-			// Get spell offset in string table 6
-			// Spell1
-				unsigned int Spell1Offset = 256;
-			  // Push no value to last string value so blank
-				if (buffer[42] == 0x00) {
-					Spell1Offset = 511;
-				}
-			  // Yeti's snowball is off by 1?
-				else if (buffer[42] == 0x49) {
-					Spell1Offset = 255;
-				}
-			  // Following same logic as enchantments to guess this, appears to be correct (except for snowball above)
-				else if (buffer[42] > 0x3F && buffer[42] < 0xFF) {
-					Spell1Offset = 144;
-				}
+			/***
+				Spell Casting
 
-			// Spell2
-				unsigned int Spell2Offset = 256;
-			  // Push no value to last string value so blank
-				if (buffer[43] == 0x00) {
-					Spell2Offset = 511;
-				}
-			  // Yeti's snowball is off by 1?
-				else if (buffer[43] == 0x49) {
-					Spell2Offset = 255;
-				}
-			  // Following same logic as enchantments to guess this, appears to be correct (except for snowball above)
-				else if (buffer[43] > 0x3F && buffer[43] < 0xFF) {
-					Spell2Offset = 144;
-				}
+				Looks like the way casting works is the creature will choose to cast spell 1 or 2 (offensive spells) based on the
+				spell chance value if IsCaster is true with a rare chance it'll cast spell 3 instead (not sure if IsCaster needs set for 3)
 
-			// Spell3
-				unsigned int Spell3Offset = 256;
-			  // Push no value to last string value so blank
-				if (buffer[44] == 0x00) {
-					Spell3Offset = 511;
-				}
-			  // Yeti's snowball is off by 1?
-				else if (buffer[44] == 0x49) {
-					Spell3Offset = 255;
-				}
-			  // Following same logic as enchantments to guess this, appears to be correct (except for snowball above)
-				else if (buffer[44] > 0x3F && buffer[44] < 0xFF) {
-					Spell3Offset = 144;
-				}
-				/***
-					Note:  UW2 Liche Wizard
-					In the strategy guide, this creature type is listed with 7 spells; however, only the 3 above are available for any 1 critter
-					After poking at this a bit to figure out how that worked, I'm reasonably sure that it really only has the 3 linked here (Fireball/Flame Wind/Heal)
+				When picking spells it looks like it goes
+				Spell3 - Rand(0,255) <= SpellChance - Note that the max value you can have in 7 bits is 127 so at best this will fire half the time
 
-					The missing ones are explained/spoofed by:
-						Iron Flesh:	Has very high base defense for wizard type
-						Flameproof:	ResistFire flag set in COMOBJ
-						Fly:		Mistake in the guide and is meant for Liche Assassin who has the Fly flag set (they _did_ make several other errors)
-						Open:		Door/Lockpicking skill is set at a very high value (highest of all critters) so it's really just picking it
+				If that doesn't fire (or no Spell 3) then it checks if it should cast Spell 1 or 2
+				Spell1/2 - Rand(0,127) <= SpellChance
+					Spell2 - Rand(0,15) >= 11 (1/3 chance)
+					Spell1 - Fallback (2/3 chance)
 
-					Additionally, the guide notes:  "The wizard liche's high armor score reflects the ability to cast Iron Flesh."
-					That could be read as they were inflating the number in their chart to show what it would be when they cast it
-					however, it _is_ set that high which indicates it's always on/doesn't need cast (and probably shouldn't be as it'd be ludicrously high (13))
+				So as an example, a critter with a SpellChance value of 20
+				7.8125% chance to cast Spell 3 (20/256)
+				5.2083~% chance to cast Spell 2 (20/128) * (1/3) or 20/192
+				10.416~% chance to cast Spell 1 (20/128) * (2/3) or 20/384
 
-					I could be wrong but I doubt they'd bother hardcoding in additional spells and the AI logic to cast them
-					for 1 critter if they've already covered those spells' effects by other means (and/or messed up the guide)
-				***/
+				For many (most?) enemies, they really only have 1 spell they cast (or throw with Snowball) so they list it as both
+				Spell 1 and 2 so the random check doesn't matter for them, they always cast it if they decide to cast a spell at all;
+				meaning, in the example above, the critter would have a 15.625% chance to decide to cast the spell
+
+				To make this a little cleaner, Spell 2 is suppressed if it's the same as Spell 1
+
+				Note:  I should clarify that these are the odds _if_ it decides it should check if it should cast a spell, there are other higher
+				priority things that it may pick first depending on it's current circumstances (distance from player, health, etc)
+				Additionally, I _believe_ it checks spell 3 first before checking if it should try Spell 1/2, so the odds probably should
+				account for that - i.e. in the example above there's a 92.1875% chance it will have the 15.625% chance to cast 1 or 2,
+				putting the actual odds ~14.404%... that's more math than I care to do for now so this is close enough :P
+
+				Note:  UW2 Liche Wizard
+				In the strategy guide, this creature type is listed with 7 spells; however, only the 3 above are available for any 1 critter
+				After poking at this a bit to figure out how that worked, I'm reasonably sure that it really only has the 3 linked here (Fireball/Flame Wind/Heal)
+
+				The missing ones are explained/spoofed by:
+					Iron Flesh:	Has very high base defense for wizard type
+					Flameproof:	ResistFire flag set in COMOBJ
+					Fly:		Mistake in the guide and is meant for Liche Assassin who has the Fly flag set (they _did_ make several other errors)
+					Open:		Door/Lockpicking skill is set at a very high value (highest of all critters) so it's really just picking it
+
+				Additionally, the guide notes:  "The wizard liche's high armor score reflects the ability to cast Iron Flesh."
+				That could be read as they were inflating the number in their chart to show what it would be when they cast it
+				however, it _is_ set that high which indicates it's always on/doesn't need cast (and probably shouldn't be as it'd be ludicrously high (13))
+
+				I could be wrong but I doubt they'd bother hardcoding in additional spells and the AI logic to cast them
+				for 1 critter if they've already covered those spells' effects by other means (and/or messed up the guide)
+
+				Note:	Name Enchantment
+				2 of the mages in UW2 have Name Enchantment as Spell 2 (118/119) which obviously makes no sense and does nothing
+				when they cast it; however, it's definitely correct and Study Monster does return it as being a spell they can cast
+
+				I'm near certain it's entirely a cosmetic effect put in as they will still do a casting animation when used
+				so it makes the mage look like they're doing magey things when in combat (powering themselves up or something)
+			***/
+				unsigned int SpellOffset[3]{};
+				unsigned int SpellChance = buffer[45] >> 1;
+				std::string Spell1Chance = "";				
+				std::string Spell2Chance = "";
+				std::string Spell3Chance = "";
+
+			// Loop spells and set the offset to the spell name and casting chance
+				for (int s = 0; s < 3; s++) {
+				// Check if no spell or spell 2 = spell 1
+					if (buffer[42 + s] == 0x00 || buffer[42 + s] == 0xFF || (s == 1 && buffer[42] == buffer[43])) {
+						SpellOffset[s] = 511;	// Push no value to last string value so blank
+						continue;
+					}
+
+				// Get spell's offset in block 6
+				  // Yeti's snowball is off by 1
+					if (buffer[42 + s] == 0x49) {
+						SpellOffset[s] = 255 + 0x49;
+					}
+				  // Following same logic as enchantments to guess this, appears to be correct (except for snowball above)
+					else if (buffer[42 + s] > 0x3F && buffer[42 + s] < 0xFF) {
+						SpellOffset[s] = 144 + buffer[42 + s];
+					}
+				  // Otherwise offset is 256
+					else {
+						SpellOffset[s] = 256 + buffer[42 + s];
+					}
+						
+				// Set SpellChance
+				  // Spell 1
+					if (s == 0) {
+					// If Spell1 = Spell 2, combine odds
+						Spell1Chance = GetPercent(SpellChance, buffer[42] == buffer[43] ? 128 : 192, 3);
+					}
+				  // Spell 2
+					else if (s == 1) {
+						Spell2Chance = GetPercent(SpellChance, 384, 3);
+					}
+				  // Spell 3
+					else {
+						Spell3Chance = GetPercent(SpellChance, 256, 3);
+					}
+				}
 
 			// Export to CSV
 				fprintf(
 					OBJECT_CRITTER,
 					"%u,"		// ItemID
 					"%s,"		// Name
-					"%u,"		// BaseArmor
-					"%s,"		// Armor1
-					"%s,"		// Armor2
-					"%s,"		// Armor3
+					"%u,"		// Armor_Body
+					"%s,"		// Armor_Hand
+					"%s,"		// Armor_Feet
+					"%s,"		// Armor_Head
 					"%u,"		// HP
 					"%u,"		// STR
 					"%u,"		// DEX
 					"%u,"		// INT
-					"%s,"		// DeathVOC
-					"%u,"		// BloodOnHit
-					"%s,"		// BloodOnDeath
+					"%s,"		// Death_VOC
+					"%u,"		// Blood_Hit
+					"%s,"		// Blood_Death
 					"%s,"		// Race
 					"%u,"		// DmgWeapOnCritMiss
 					"%u,"		// IsPassive
 					"%s,"		// Corpse
-					"%u,"		// x0Ab5 -- Unknown
+					"%u,"		// Jump
 					"%u,"		// Swim
 					"%u,"		// Fly
-					"%02X,"		// Speed_Normal
+					"%u,"		// Speed_Normal
 					"%u,"		// Speed_Combat
-					"%u,"		// ConvLevel
-					"%u,"		// TradeAbility
-					"%u,"		// TradeThreshold
-					"%u,"		// TradePatience
-					"%u,"		// PoisonDamage
+					"%u,"		// NPC_Level
+					"%u,"		// Trade_Ability
+					"%u,"		// Trade_Threshold
+					"%u,"		// Trade_Patience
+					"%u,"		// Poison_Damage
 					"%s,"		// Category
-					"%u,"		// Attack
-					"%u,"		// Defense
-					"%u,"		// SlashSkill
-					"%u,"		// SlashDamage
-					"%u,"		// SlashChance
-					"%u,"		// BashSkill
-					"%u,"		// BashDamage
-					"%u,"		// BashChance
-					"%u,"		// StabSkill
-					"%u,"		// StabDamage
-					"%u,"		// StabChance
-					"%02X,"		// x1C -- Unknown
-					"%u,"		// SearchDistance
+					"%u,"		// Attack_Skill
+					"%u,"		// Defense_Skill
+					"%s,"		// Slash_Skill
+					"%s,"		// Slash_Damage
+					"%s,"		// Slash_Chance
+					"%s,"		// Bash_Skill
+					"%s,"		// Bash_Damage
+					"%s,"		// Bash_Chance
+					"%s,"		// Stab_Skill
+					"%s,"		// Stab_Damage
+					"%s,"		// Stab_Chance
+					"%u,"		// Flee_Threshold
+					"%u,"		// Wander_Range
+					"%u,"		// Stealth
+					//"%u,"		// Visibility
 					"%u,"		// Ears
 					"%u,"		// Eyes
-					"%02X,"		// x1F -- Unknown
-					"%s,"		// DropItem1Name
-					"%u,"		// DropItem1Spawn
-					"%s,"		// DropItem2Name
-					"%u,"		// DropItem2Spawn
-					"%s,"		// DropItem3Name
-					"%u,"		// DropItem3Chance
-					"%s,"		// DropItem4Name
-					"%u,"		// DropItem4Chance
-					"%u,"		// DropCoinCalc
-					"%u,"		// DropCoinChance
-					"%s,"		// DropFoodName
-					"%u,"		// DropFoodChance
-					"%u,"		// EXP
-					"%s,"		// Spell1
-					"%s,"		// Spell2
-					"%s,"		// Spell3
+					"%u,"		// Wander_Duration
+					"%u,"		// Pursue_Range
+					"%s,"		// Item1_Name
+					"%s,"		// Item1_Chance
+					"%s,"		// Item2_Name
+					"%s,"		// Item2_Chance
+					"%s,"		// Item3_Name
+					"%s,"		// Item3_Chance
+					"%s,"		// Item4_Name
+					"%s,"		// Item4_Chance
+					"%s,"		// Treasure_QtyCalc
+					"%s,"		// Treasure_Chance
+					"%s,"		// Food_Name
+					"%s,"		// Food_Chance
+					"%u,"		// XP
+					"%s,"		// Spell1_Name
+					"%s,"		// Spell1_Chance
+					"%s,"		// Spell2_Name
+					"%s,"		// Spell2_Chance
+					"%s,"		// Spell3_Name
+					"%s,"		// Spell3_Chance
 					"%u,"		// IsCaster
-					"%u,"		// SpellChance
-					"%u,"		// LockPicking
-					"%02X\n",	// x2F -- Unknown
+					//"%s,"		// Spell_Chance - Changed to calculated value for each spell
+					"%u\n",		// LockPicking
+					//"%02X\n",	// x2F -- Unknown
 					i,								// ItemID
 					DisplayName.c_str(),			// Name
-					buffer[0],						// BaseArmor
-					buffer[1] == 255 ? "" : std::to_string(buffer[1]).c_str(),	// Armor1 -- Not sure if 1 is hand/legs/both or other so leaving it and 2/3 with generic name
-					buffer[2] == 255 ? "" : std::to_string(buffer[2]).c_str(),	// Armor2 -- Pretty sure this is body
-					buffer[3] == 255 ? "" : std::to_string(buffer[3]).c_str(),	// Armor3 -- Pretty sure this is head
+					buffer[0],						// Armor_Body - Pretty sure it falls back to this when Hand/FeetLeg/Head are -1
+					buffer[1] == 255 ? "" : std::to_string(buffer[1]).c_str(),	// Armor_Hand
+					buffer[2] == 255 ? "" : std::to_string(buffer[2]).c_str(),	// Armor_Feet -- Values match to body defense in UW2 guide but this appears to be the actual usage - think it includes legs buts looks nicer with all 4 being 4 characters :P
+					buffer[3] == 255 ? "" : std::to_string(buffer[3]).c_str(),	// Armor_Head
 					buffer[4],						// HP
 					buffer[5],						// STR
 					buffer[6],						// DEX
 					buffer[7],						// INT
-					DeathVOC.c_str(),				// DeathVOC
-					(buffer[8] & 0x18) >> 3,		// BloodOnHit
-					Remains,						// BloodOnDeath (8 >> 5)
+					DeathVOC.c_str(),				// Death_VOC (08)
+					(buffer[8] & 0x18) >> 3,		// Blood_Hit
+					BloodOnDeath.c_str(),			// Blood_Death (8 >> 5)
 					CleanDisplayName(gs.get_string(1, buffer[9] + 370).c_str(), true, false).c_str(),	// Race
 					(buffer[10] & 0x01) == 1 ? 0 : 1,	// DmgWeapOnCritMiss - Value is inverted here, 1 if won't damage, 0 if will - WillNotDmgWeapOnCritMiss is a little long so inverting :P
 					(buffer[10] & 0x02) >> 1,		// IsPassive -- No response/change attitude when attacked -- Only set in UW1 for Ethereal Void creatures, Wisp, and Player
 					CleanDisplayName(gs.get_string(4, ((buffer[10] & 0x1C) >> 2) + CorpseOffset).c_str(), true, false).c_str(),	// Corpse
-					(buffer[10] & 0x20) >> 5,		// x0Ab5 -- Unknown - Set on things with legs (except player), off on flyers, swimmers, slugs/worms/etc
+					(buffer[10] & 0x20) >> 5,		// Jump -- Set on things with legs (except player), off on flyers, swimmers, slugs/worms/etc
 					(buffer[10] & 0x40) >> 6,		// Swim
 					(buffer[10] & 0x80) >> 7,		// Fly
 					buffer[11],						// Speed_Normal	-- Not 100% sure this covers all other behaviors but seems to
 					buffer[12],						// Speed_Combat
-					buffer[13] & 0x0F,				// ConvLevel
-					buffer[13] >> 4,				// TradeAbility
-					buffer[14] & 0x0F,				// TradeThreshold
-					buffer[14] >> 4,				// TradePatience
-					buffer[15],						// PoisonDamage
-					Category,						// Category (16)
-					buffer[17],						// Attack
-					buffer[18],						// Defense
-					buffer[19],						// SlashSkill
-					buffer[20],						// SlashDamage
-					buffer[21],						// SlashChance
-					buffer[22],						// BashSkill
-					buffer[23],						// BashDamage
-					buffer[24],						// BashChance
-					buffer[25],						// StabSkill
-					buffer[26],						// StabDamage
-					buffer[27],						// StabChance
-					buffer[28],						// x1C -- Unknown
-					buffer[29],						// SearchDistance
-					(buffer[30] & 0x0F) << 3,		// Ears
-					(buffer[30] & 0xF0) >> 1,		// Eyes
-					buffer[31],						// x1F -- Unknown
-					Item1Name.c_str(),				// DropItem1Name
-					buffer[32] & 0x01,				// DropItem1Spawn
-					Item2Name.c_str(),				// DropItem2Name
-					buffer[33] & 0x01,				// DropItem2Spawn
-					Item3Name.c_str(),				// DropItem3Name
-					buffer[34] & 0x0F,				// DropItem3Chance
-					Item4Name.c_str(),				// DropItem4Name
-					buffer[36] & 0x0F,				// DropItem4Chance
-					buffer[38] & 0x0F,				// DropCoinCalc
-					buffer[38] >> 4,				// DropCoinChance
-					FoodName.c_str(),				// DropFoodName
-					buffer[39] & 0x0F,				// DropFoodChance
-					buffer[40] | (buffer[41] << 8),	// EXP
-					CleanDisplayName(gs.get_string(6, buffer[42] + Spell1Offset).c_str(), true, false).c_str(),	// Spell1
-					CleanDisplayName(gs.get_string(6, buffer[43] + Spell2Offset).c_str(), true, false).c_str(),	// Spell2
-					CleanDisplayName(gs.get_string(6, buffer[44] + Spell3Offset).c_str(), true, false).c_str(),	// Spell3
-					buffer[45] & 0x01,				// IsCaster - Won't cast spells, even with Spells and value in SpellChance if not set - Guessing special code for Great Troll regen as it won't cast the heal spell it has, probably is there with value in SpellChance so it'll show in Study Monster spell only
-					buffer[45] >> 1,				// SpellChance -- Referenced by StudyMonster, if 0 it doesn't return spells, but appears to control how often the critter casts spells - if set to FF, it'll just stand there and cast non-stop, if 1 (or 3 technically) it will cast very rarely
-					buffer[46],						// LockPicking - Not sure if actual skill or bit mask of locks it can open - value of 1 will let it open standard doors - doesn't appear they'll ever open hidden ones
-					buffer[47]						// x2F -- Unknown
+					buffer[13] & 0x0F,				// NPC_Level
+					buffer[13] >> 4,				// Trade_Ability
+					buffer[14] & 0x0F,				// Trade_Threshold
+					buffer[14] >> 4,				// Trade_Patience
+					buffer[15],						// Poison_Damage
+					Category.c_str(),				// Category (16)
+					buffer[17],						// Attack_Skill
+					buffer[18],						// Defense_Skill
+					CanSlash ? std::to_string(buffer[19]).c_str() : "-",			// Slash_Skill
+					CanSlash ? std::to_string(buffer[20]).c_str() : "-",			// Slash_Damage
+					CanSlash ? (std::to_string(buffer[21]) + "%").c_str() : "-",	// Slash_Chance
+					CanBash ? std::to_string(buffer[22]).c_str() : "-",				// Bash_Skill
+					CanBash ? std::to_string(buffer[23]).c_str() : "-",				// Bash_Damage
+					CanBash ? (std::to_string(buffer[24]) + "%").c_str() : "-",		// Bash_Chance
+					CanStab ? std::to_string(buffer[25]).c_str() : "-",				// Stab_Skill
+					CanStab ? std::to_string(buffer[26]).c_str() : "-",				// Stab_Damage
+					CanStab ? (std::to_string(buffer[27]) + "%").c_str() : "-",		// Stab_Chance
+					(15 - (buffer[28] & 0x0F)),		// Flee_Threshold - Looks like it checks this when HP is at 12.5% as (15 - Val) >= (Rand(0,4) + ((CurrentHP * 16) / MaxHP)) - Also will flee if <= 12.5 and last hit did over 50% of MaxHP
+					buffer[28] >> 4,				// Wander_Range
+					buffer[29] & 0x0F,				// Stealth	- Looks to be ability to be detected, compared against "Ears"
+					//buffer[29] >> 4,				// Visibility - Looks to be used with "Eyes" to check if illegal activities are seen by an NPC - Always 8 for critters and not really a thing anyways so ignoring
+					(buffer[30] & 0x0F) << 3,		// Ears - Name from UW2 clue book, appears to really be just the general ability to detect a critter or the player is there
+					(buffer[30] & 0xF0) >> 1,		// Eyes - Name from UW2 clue book, appears to be used to detect "illegal" actions by the player (i.e. stealing stuff)
+					buffer[31] & 0x0F,				// Wander_Duration - This sorta works as a preference between idling/standing vs wander, lower values will stop wandering more often and stand around longer, higher values will wander longer and idle less - at 15 they'll basically never stop
+					buffer[31] >> 4,				// Pursue_Range - Not sure if duration or range?
+					Item1Name.c_str(),				// Item1_Name
+					Item1Name == "" ? "" : (buffer[32] & 0x01) == 0 ? "0%" : "100%",	// Item1_Chance - Not really a chance, it's a boolean true/false that's true for all except a couple in UW2 but making it match with other drop types
+					Item2Name.c_str(),				// Item2_Name
+					Item2Name == "" ? "" : (buffer[33] & 0x01) == 0 ? "0%" : "100%",	// Item2_Chance - Same note as above
+					Item3Name.c_str(),				// Item3_Name
+					Item3Chance.c_str(),			// Item3_Chance
+					Item4Name.c_str(),				// Item4_Name
+					Item4Chance.c_str(),			// Item4_Chance
+					buffer[38] == 0 ? "" : std::to_string(buffer[38] & 0x0F).c_str(),	// Treasure_QtyCalc - Seems to be an odd formula used to determine how many to drop depending on the item's value
+					buffer[38] == 0 ? "" : GetPercent(buffer[38] >> 4, 15, 2).c_str(),	// Treasure_Chance
+					FoodName.c_str(),				// Food_Name
+					FoodChance.c_str(),				// Food_Chance
+					buffer[40] | (buffer[41] << 8),	// XP
+					CleanDisplayName(gs.get_string(6, SpellOffset[0]).c_str(), true, false).c_str(),	// Spell1_Name
+					Spell1Chance.c_str(),			// Spell1_Chance
+					CleanDisplayName(gs.get_string(6, SpellOffset[1]).c_str(), true, false).c_str(),	// Spell2_Name
+					Spell2Chance.c_str(),			// Spell2_Chance
+					CleanDisplayName(gs.get_string(6, SpellOffset[2]).c_str(), true, false).c_str(),	// Spell3_Name
+					Spell3Chance.c_str(),			// Spell3_Chance
+					buffer[45] & 0x01,				// IsCaster - Won't cast attack spells but think it'll still cast Spell3 if not set (though rarely)
+					//buffer[45] >> 1,				// Spell_Chance -- Replaced with calculated %s but leaving note - Referenced by StudyMonster, if 0 it doesn't return spells, but actually controls how often the critter decides to cast spells when recalculating what it should be doing - if set to FF, it'll just stand there and cast non-stop, if 1 (or 3 technically) it will cast very rarely
+					buffer[46]						// LockPicking - Not sure if actual skill or bit mask of locks it can open - value of 1 will let it open standard doors - doesn't appear they'll ever open hidden ones
+					//buffer[47]						// x2F -- Unknown - always the same value: UW1 0x49 (73) / UW2 0x65 (101) - doesn't appear to do anything so dropping
 				);
 			}
 			fclose(OBJECT_CRITTER);
@@ -895,18 +953,22 @@ int DATXtract(
 		// Create CSV export file and header
 			sprintf(TempPath, "%s\\OBJECTS_FOOD.csv", OutPath.c_str());
 			FILE* OBJECT_FOOD = fopen(TempPath, "w");
-			fprintf(OBJECT_FOOD, "ItemID,Name,Nutrition\n");
+			fprintf(OBJECT_FOOD, "ItemID,Name,Nutrition,Intoxication\n");
 
 			for (int i = 0xB0; i < 0xC0; i++) {
+				unsigned char FoodVal = fgetc(fd);
+
 			// Export to CSV
 				fprintf(
 					OBJECT_FOOD,
 					"%u,"	// ItemID
 					"%s,"	// Name
-					"%d\n",	// Nutrition
+					"%s,"	// Nutrition
+					"%s\n",	// Intoxication
 					i,			// ItemID
 					CleanDisplayName(gs.get_string(4, i).c_str(), true, false).c_str(),	// Name
-					fgetc(fd)	// Nutrition
+					((FoodVal & 0x80) == 0x00) ? std::to_string(FoodVal).c_str() : "",				// Nutrition
+					((FoodVal & 0x80) == 0x80) ? std::to_string(0xFF - FoodVal).c_str() : ""		// Intoxication - Think it's 255 - Val, not just treated as signed as water will get you drunk in that case (or I guess it be Val + 1 if it is)
 				);
 			}
 			fclose(OBJECT_FOOD);
@@ -990,7 +1052,7 @@ int DATXtract(
 					When turned on for Moving Doors, it causes the door and wall frame around it to disappear after it completes,
 					i.e. completely closed/opened - not invisible, it's gone and can walk through
 
-					Maybe flag is more like IsTemporary?
+					Maybe flag is more like IsTemporary or could vary based on the IsTemp & IsSolid flags in COMOBJ.DAT?
 
 				B6	Unknown/Unused
 					Not set on any, did not notice any difference when turning on
@@ -1027,8 +1089,8 @@ int DATXtract(
 				// Skipping bit 6 - can find no effect when set
 					(buffer[0] & 0x80) >> 7,	// x00b7 - Unknown flag set on Moving Door only
 				// Skipping byte 1 - can find no effect when set
-					buffer[2],		// StartFrame
-					buffer[3]		// FrameCount
+					buffer[2],		// StartFrame - This is the first image ID in ANIMO.GR
+					buffer[3]		// FrameCount - How many images are part of the animation, beginning at StartFrame
 				);
 			}
 			fclose(OBJECT_ANIMATION);
@@ -1056,6 +1118,8 @@ int DATXtract(
 		for (int s = 0; s < ShadeCount; s++) {
 			fread(ShadeBuffer, 1, 12, fd);
 
+			signed short StepVal = ShadeBuffer[4] | (ShadeBuffer[5] << 8);
+
 		// Export to CSV
 			fprintf(
 				out,
@@ -1063,7 +1127,7 @@ int DATXtract(
 				"%s,"		// LightLevel -- Assuming this matches to the light level
 				"%u,"		// NearOffset	-- This and bytes 1-3 are documented as u8 but looks to me like they're u16 so treating as such
 				"%u,"		// PalIndex -- Believe this is the index to the palette in LIGHT.DAT
-				"%04X,"		// Step -- Documented as this but the values don't make sense to me, leaving as hex since int looks very obviously wrong
+				"%hi,"		// Step -- I won't pretend to know how this works
 				"%u,"		// ViewDistance	-- Tiles until full dark
 				"%u,"		// TextureDistance -- Distance until flat texturing (not sure how it measures that?)
 				"%04X\n",	// x0A -- Unknown - Maybe Z distance?
@@ -1071,10 +1135,10 @@ int DATXtract(
 				gs.get_string(6, s).c_str(),				// LightLevel -- Using the magic spell light description, though they don't really match well with things like candles (Burning Match), torches (Candlelight), etc
 				ShadeBuffer[0] | (ShadeBuffer[1] << 8),		// NearOffset
 				ShadeBuffer[2] | (ShadeBuffer[3] << 8),		// PalIndex
-				ShadeBuffer[4] | (ShadeBuffer[4] << 8),		// Step
+				ShadeBuffer[4] | (ShadeBuffer[5] << 8),		// Step
 				ShadeBuffer[6] | (ShadeBuffer[7] << 8),		// ViewDistance
 				ShadeBuffer[8] | (ShadeBuffer[9] << 8),		// TextureDistance
-				ShadeBuffer[10] | (ShadeBuffer[11] << 8)	// x0A -- Unknown
+				ShadeBuffer[11] | (ShadeBuffer[10] << 8)	// x0A -- Unknown
 			);
 		}
 		fclose(fd);
