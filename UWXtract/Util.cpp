@@ -327,3 +327,57 @@ std::string UW2LevelName(
 
 	return LevelName;
 }
+
+// Convoluted method of getting a percentage with variable precision
+std::string GetPercent(
+	unsigned int Value,
+	unsigned int Range,
+	unsigned char Precision,
+	bool IncludePercent = 1
+) {
+	std::string PercentVal = "";
+	std::string PercentSymbol = IncludePercent ? "%" : "";
+
+// Not sure if needed but avoiding type conversion while mathing at it
+	unsigned long long ValueTemp = Value;
+
+// You don't need to be _that_ precise - also it'll do interesting and/or unfortunate things (surprise!) if it's larger than this so no
+	unsigned char PrecisionTemp = Precision > 6 ? 6 : Precision;
+
+// Skip and return blank if 0 - may want to change this to 0 and control calls or add flag to set behavior
+	if (Value > 0) {
+		unsigned long long IntVal = (ValueTemp * 100) / Range;
+
+	// Don't bother with decimals if 0 precision
+		if (PrecisionTemp == 0) {
+			PercentVal = std::to_string(IntVal) + PercentSymbol;
+		}
+	// Do bother with precision if set though :P
+		else {
+		// Make exponents of 10 big enough to hold value for target precision
+			unsigned long IntExponent = 10;
+			for (int ie = 1; ie < PrecisionTemp; ie += 1) {
+				IntExponent *= 10;
+			}
+
+			unsigned long long DecExponent = 10;
+			for (int de = 1; de < (7 - PrecisionTemp); de += 1) {
+				DecExponent *= 10;
+			}
+
+		// Get decimal portion of value
+			std::string DecText = std::to_string((((ValueTemp * 1000000000) / Range) / DecExponent) - (IntVal * IntExponent));
+		// Then check if it needs some padding (and add it)
+			unsigned char DecLen = DecText.length();
+			if (DecLen < PrecisionTemp) {
+				for (int p = 0; p < (PrecisionTemp - DecLen); p += 1) {
+					DecText = "0" + DecText;
+				}
+			}
+
+			PercentVal = std::to_string(IntVal) + "." + DecText + PercentSymbol;
+		}
+	}
+
+	return PercentVal;
+}
